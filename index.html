@@ -3,26 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Index of / | Your Name</title>
-<meta name="description" content="Personal homepage of Your Name">
+<title>gloomydog</title>
+<meta name="description" content="Personal homepage of gloomydog">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <main>
-  <div class="prompt"><span class="user">guest@your-name</span>:<span class="path">~</span>$ ls -l</div>
-  <h1>gloomydog</h1>
+  <div class="prompt"><span class="path">~</span>$ ls -l</div>
   <table>
     <thead>
-      <tr><th>Name</th><th class="hide-sm">Last modified</th><th class="hide-sm">Size</th><th>Description</th></tr>
+      <tr><th>Name</th><th class="hide-sm">Last modified</th><th>Description</th></tr>
     </thead>
     <tbody>
-      <tr><td><a href="about.html">about.html</a></td><td class="meta hide-sm">2026-10-24</td><td class="meta hide-sm">1K</td><td class="meta">Who I am</td></tr>
-      <tr><td><a class="dir" href="projects/">projects/</a></td><td class="meta hide-sm">2026-10-24</td><td class="meta hide-sm">-</td><td class="meta">Things I've built</td></tr>
-      <tr><td><a href="contact.html">contact.html</a></td><td class="meta hide-sm">2026-10-24</td><td class="meta hide-sm">1K</td><td class="meta">How to reach me</td></tr>
+      <tr><td><a class="dir" href="projects/">projects/</a></td><td class="meta hide-sm">2026-10-24</td><td class="meta">Things I've built</td></tr>
     </tbody>
   </table>
-  <div class="prompt"><span class="user">guest@your-name</span>:<span class="path">~</span>$ <span class="cursor"></span></div>
-  <footer>&copy; 2026 Your Name</footer>
+
+  <div class="prompt"><span class="path">~</span>$ cat about.txt</div>
+  <article>
+    <p>Hi, I'm gloomydog. Write a few lines here about what you do and what you're interested in.</p>
+    <p>Based in Tokyo. Add anything else you'd like people to know.</p>
+  </article>
+
+  <div class="prompt"><span class="path">~</span>$ cat contact.txt</div>
+  <table>
+    <tbody>
+      <tr><td class="meta">GitHub</td><td><a href="https://github.com/gloomydog">github.com/gloomydog</a></td></tr>
+    </tbody>
+  </table>
+
+  <div class="prompt"><span class="path">~</span>$ <span class="cursor"></span></div>
+  <footer>&copy; 2026 gloomydog</footer>
 </main>
 </body>
 </html>
