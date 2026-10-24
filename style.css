@@ -40,3 +40,5 @@ td.meta { color: var(--muted); white-space: nowrap; }
 @media (max-width: 600px) { .hide-sm { display: none; } }
 article p { max-width: 66ch; margin: 0 0 12px; }
 footer { margin-top: 32px; color: var(--muted); font-size: .85rem; }
+.site-title { font-size: 1.6rem; font-weight: 700; color: var(--fg); margin: 0 0 16px; }
+.hero { display: block; margin: 0 0 28px; border: 1px solid var(--border); max-width: 100%; height: auto; }

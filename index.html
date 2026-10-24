@@ -3,13 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>gloomydog</title>
-<meta name="description" content="Personal homepage of gloomydog">
+<title>gloomydog's home page</title>
+<meta name="description" content="gloomydog's home page">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <main>
-  <div class="prompt"><span class="path">~</span>$ ls -l</div>
+  <h1 class="site-title">gloomydog's home page</h1>
+  <img class="hero" src="https://github.com/gloomydog.png" alt="gloomydog" width="160" height="160" onerror="this.style.display='none'">
+
+  <div class="prompt"><span class="user">guest@gloomydog</span>:<span class="path">~</span>$ cat about.txt</div>
+  <article>
+    <p>Hi, I'm gloomydog. Write a few lines here about what you do and what you're interested in.</p>
+    <p>Based in Tokyo. Add anything else you'd like people to know.</p>
+  </article>
+
+  <div class="prompt"><span class="user">guest@gloomydog</span>:<span class="path">~</span>$ cat contact.txt</div>
+  <table>
+    <tbody>
+      <tr><td class="meta">GitHub</td><td><a href="https://github.com/gloomydog">github.com/gloomydog</a></td></tr>
+    </tbody>
+  </table>
+
+  <div class="prompt"><span class="user">guest@gloomydog</span>:<span class="path">~</span>$ ls -l</div>
   <table>
     <thead>
       <tr><th>Name</th><th class="hide-sm">Last modified</th><th>Description</th></tr>
@@ -19,20 +35,7 @@
     </tbody>
   </table>
 
-  <div class="prompt"><span class="path">~</span>$ cat about.txt</div>
-  <article>
-    <p>Hi, I'm gloomydog. Write a few lines here about what you do and what you're interested in.</p>
-    <p>Based in Tokyo. Add anything else you'd like people to know.</p>
-  </article>
-
-  <div class="prompt"><span class="path">~</span>$ cat contact.txt</div>
-  <table>
-    <tbody>
-      <tr><td class="meta">GitHub</td><td><a href="https://github.com/gloomydog">github.com/gloomydog</a></td></tr>
-    </tbody>
-  </table>
-
-  <div class="prompt"><span class="path">~</span>$ <span class="cursor"></span></div>
+  <div class="prompt"><span class="user">guest@gloomydog</span>:<span class="path">~</span>$ <span class="cursor"></span></div>
   <footer>&copy; 2026 gloomydog</footer>
 </main>
 </body>
