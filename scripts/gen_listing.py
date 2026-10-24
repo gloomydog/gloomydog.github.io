@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+"""Generate ls-style index.html pages for books/ and every directory below it,
+and refresh the books/ section of the top-level index.html.
+
+Run from the repository root:  python3 scripts/gen_listing.py
+"""
+import datetime
+import html
+import os
+import subprocess
+import sys
+from pathlib import Path
+from urllib.parse import quote
+
+ROOT = Path(__file__).resolve().parent.parent
+BOOKS = ROOT / "books"
+USER = "gloomydog"
+START = "<!-- BOOKS:START -->"
+END = "<!-- BOOKS:END -->"
+
+
+def last_modified(path: Path) -> str:
+    """Date of the last commit touching path; falls back to mtime."""
+    try:
+        out = subprocess.run(
+            ["git", "log", "-1", "--format=%cs", "--", str(path)],
+            cwd=ROOT, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        if out:
+            return out
+    except Exception:
+        pass
+    return datetime.date.fromtimestamp(path.stat().st_mtime).isoformat()
+
+
+def human_size(n: int) -> str:
+    size = float(n)
+    for unit in ("B", "K", "M", "G"):
+        if size < 1024 or unit == "G":
+            return f"{int(size)}{unit}" if unit == "B" else f"{size:.1f}{unit}"
+        size /= 1024
+    return f"{n}B"
+
+
+def entries(directory: Path):
+    """Visible children (no dotfiles, no index.html): dirs first, then files."""
+    items = [
+        p for p in directory.iterdir()
+        if not p.name.startswith(".") and p.name != "index.html"
+    ]
+    dirs = sorted((p for p in items if p.is_dir()), key=lambda p: p.name.lower())
+    files = sorted((p for p in items if p.is_file()), key=lambda p: p.name.lower())
+    return dirs, files
+
+
+def rows_html(directory: Path, with_parent: bool, with_size: bool = True) -> str:
+    dirs, files = entries(directory)
+    rows = []
+    if with_parent:
+        rows.append(
+            '      <tr><td><a class="dir" href="../">../</a></td>'
+            '<td class="meta hide-sm">-</td>'
+            + ('<td class="meta hide-sm">-</td>' if with_size else "")
+            + "</tr>"
+        )
+    for d in dirs:
+        rows.append(
+            f'      <tr><td><a class="dir" href="{quote(d.name)}/">{html.escape(d.name)}/</a></td>'
+            f'<td class="meta hide-sm">{last_modified(d)}</td>'
+            + ('<td class="meta hide-sm">-</td>' if with_size else "")
+            + "</tr>"
+        )
+    for f in files:
+        rows.append(
+            f'      <tr><td><a href="{quote(f.name)}">{html.escape(f.name)}</a></td>'
+            f'<td class="meta hide-sm">{last_modified(f)}</td>'
+            + (f'<td class="meta hide-sm">{human_size(f.stat().st_size)}</td>' if with_size else "")
+            + "</tr>"
+        )
+    return "\n".join(rows), len(dirs) + len(files)
+
+
+def table_html(rows: str) -> str:
+    return (
+        "  <table>\n"
+        "    <thead>\n"
+        '      <tr><th>Name</th><th class="hide-sm">Last modified</th><th class="hide-sm">Size</th></tr>\n'
+        "    </thead>\n"
+        "    <tbody>\n"
+        f"{rows}\n"
+        "    </tbody>\n"
+        "  </table>"
+    )
+
+
+def build_page(directory: Path) -> str:
+    rel = directory.relative_to(ROOT)  # e.g. books/Chemistry
+    depth = len(rel.parts)
+    css = "../" * depth + "style.css"
+    shown = "~/" + rel.as_posix()
+    rows, count = rows_html(directory, with_parent=True)
+    body = table_html(rows)
+    total = f'  <p class="meta">total {count}</p>\n' if count == 0 else ""
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Index of /{html.escape(rel.as_posix())}/ | {USER}</title>
+<link rel="stylesheet" href="{css}">
+</head>
+<body>
+<main>
+  <div class="prompt"><span class="user">{USER}</span>:<span class="path">{html.escape(shown)}</span>$ ls -l</div>
+{body}
+{total}  <div class="prompt"><span class="user">{USER}</span>:<span class="path">{html.escape(shown)}</span>$ <span class="cursor"></span></div>
+  <footer>&copy; 2026 {USER}</footer>
+</main>
+</body>
+</html>
+"""
+
+
+def update_top_page() -> None:
+    top = ROOT / "index.html"
+    text = top.read_text(encoding="utf-8")
+    if START not in text or END not in text:
+        print("index.html has no BOOKS markers; skipping top page", file=sys.stderr)
+        return
+    rows, count = rows_html(BOOKS, with_parent=False, with_size=False)
+    if count == 0:
+        block = '  <p class="meta">total 0</p>'
+    else:
+        block = (
+            "  <table>\n"
+            "    <thead>\n"
+            '      <tr><th>Name</th><th class="hide-sm">Last modified</th></tr>\n'
+            "    </thead>\n"
+            "    <tbody>\n"
+            f"{rows}\n"
+            "    </tbody>\n"
+            "  </table>"
+        )
+    # top-level links must be prefixed with books/
+    block = block.replace('href="', 'href="books/')
+    head, rest = text.split(START, 1)
+    _, tail = rest.split(END, 1)
+    new = f"{head}{START}\n{block}\n  {END}{tail}"
+    if new != text:
+        top.write_text(new, encoding="utf-8")
+
+
+def main() -> None:
+    BOOKS.mkdir(exist_ok=True)
+    dirs = [BOOKS] + sorted(p for p in BOOKS.rglob("*") if p.is_dir() and not p.name.startswith("."))
+    for d in dirs:
+        page = build_page(d)
+        target = d / "index.html"
+        if not target.exists() or target.read_text(encoding="utf-8") != page:
+            target.write_text(page, encoding="utf-8")
+    update_top_page()
+    print(f"generated {len(dirs)} listing page(s)")
+
+
+if __name__ == "__main__":
+    main()
