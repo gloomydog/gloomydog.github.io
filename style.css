@@ -47,4 +47,5 @@ footer { margin-top: 32px; color: var(--muted); font-size: .85rem; }
 .hero-row .hero { margin: 0; }
 .quote { flex: 1 1 260px; margin: 0; padding-left: 16px; border-left: 2px solid var(--border); }
 .quote p { margin: 0 0 8px; }
-.quote cite { color: var(--muted); font-style: normal; font-size: .9rem; }
+.quote cite { display: block; color: var(--muted); font-family: inherit; font-size: 12px; line-height: 1.5; }
+.quote cite em { font-style: italic; }
