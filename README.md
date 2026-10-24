@@ -1,2 +1,1 @@
-# gloomydog.github.io
-my homepage
+https://gloomydog.github.io/
