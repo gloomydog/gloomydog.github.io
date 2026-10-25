@@ -1,4 +1,4 @@
-name: Update books listing
+name: Update listings
 
 on:
   push:
@@ -6,6 +6,8 @@ on:
     paths:
       - "books/**"
       - "!books/**/index.html"
+      - "projects/**"
+      - "!projects/**/index.html"
       - "scripts/gen_listing.py"
   workflow_dispatch:
 
@@ -31,10 +33,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A books index.html
+          git add -A books projects index.html
           if git diff --cached --quiet; then
             echo "No changes"
           else
-            git commit -m "Update books listing [skip ci]"
+            git commit -m "Update listings [skip ci]"
             git push
           fi

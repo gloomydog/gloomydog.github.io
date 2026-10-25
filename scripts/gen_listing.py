@@ -13,10 +13,8 @@ from pathlib import Path
 from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parent.parent
-BOOKS = ROOT / "books"
+SECTIONS = ["projects", "books"]  # top-level dirs that get auto-generated listings
 USER = "gloomydog"
-START = "<!-- BOOKS:START -->"
-END = "<!-- BOOKS:END -->"
 
 
 def last_modified(path: Path) -> str:
@@ -121,13 +119,15 @@ def build_page(directory: Path) -> str:
 """
 
 
-def update_top_page() -> None:
+def update_top_page(section: str) -> None:
     top = ROOT / "index.html"
     text = top.read_text(encoding="utf-8")
+    START = f"<!-- {section.upper()}:START -->"
+    END = f"<!-- {section.upper()}:END -->"
     if START not in text or END not in text:
-        print("index.html has no BOOKS markers; skipping top page", file=sys.stderr)
+        print(f"index.html has no {section.upper()} markers; skipping", file=sys.stderr)
         return
-    rows, count = rows_html(BOOKS, with_parent=False, with_size=False)
+    rows, count = rows_html(ROOT / section, with_parent=False, with_size=False)
     if count == 0:
         block = '  <p class="meta">total 0</p>'
     else:
@@ -141,8 +141,8 @@ def update_top_page() -> None:
             "    </tbody>\n"
             "  </table>"
         )
-    # top-level links must be prefixed with books/
-    block = block.replace('href="', 'href="books/')
+    # top-level links must be prefixed with the section dir
+    block = block.replace('href="', f'href="{section}/')
     head, rest = text.split(START, 1)
     _, tail = rest.split(END, 1)
     new = f"{head}{START}\n{block}\n  {END}{tail}"
@@ -151,15 +151,19 @@ def update_top_page() -> None:
 
 
 def main() -> None:
-    BOOKS.mkdir(exist_ok=True)
-    dirs = [BOOKS] + sorted(p for p in BOOKS.rglob("*") if p.is_dir() and not p.name.startswith("."))
-    for d in dirs:
-        page = build_page(d)
-        target = d / "index.html"
-        if not target.exists() or target.read_text(encoding="utf-8") != page:
-            target.write_text(page, encoding="utf-8")
-    update_top_page()
-    print(f"generated {len(dirs)} listing page(s)")
+    total = 0
+    for section in SECTIONS:
+        base = ROOT / section
+        base.mkdir(exist_ok=True)
+        dirs = [base] + sorted(p for p in base.rglob("*") if p.is_dir() and not p.name.startswith("."))
+        for d in dirs:
+            page = build_page(d)
+            target = d / "index.html"
+            if not target.exists() or target.read_text(encoding="utf-8") != page:
+                target.write_text(page, encoding="utf-8")
+        total += len(dirs)
+        update_top_page(section)
+    print(f"generated {total} listing page(s)")
 
 
 if __name__ == "__main__":
