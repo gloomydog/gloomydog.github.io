@@ -7,6 +7,7 @@ Run from the repository root:  python3 scripts/gen_listing.py
 import datetime
 import html
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -51,38 +52,71 @@ def entries(directory: Path):
     return dirs, files
 
 
-def rows_html(directory: Path, with_parent: bool, with_size: bool = True) -> str:
+DESC_DEFAULT = "-"
+DESC_SECTION = "projects"  # section whose top-level entries carry a hand-written Description
+
+
+def read_descriptions() -> dict:
+    """Descriptions typed by hand in the top page's projects table (name -> text).
+    They are kept across regenerations; new files get DESC_DEFAULT."""
+    top = ROOT / "index.html"
+    if not top.exists():
+        return {}
+    text = top.read_text(encoding="utf-8")
+    start, end = f"<!-- {DESC_SECTION.upper()}:START -->", f"<!-- {DESC_SECTION.upper()}:END -->"
+    if start not in text or end not in text:
+        return {}
+    block = text.split(start, 1)[1].split(end, 1)[0]
+    out = {}
+    for m in re.finditer(
+        r'<td><a[^>]*href="' + DESC_SECTION + r'/([^"]+?)/?">.*?</a></td>.*?<td class="meta">(.*?)</td>',
+        block,
+    ):
+        out[html.unescape(m.group(1))] = m.group(2)
+    return out
+
+
+def rows_html(directory: Path, with_parent: bool, with_size: bool = True, descs=None):
+    """descs: dict (name -> raw html text) adds a Description column; None disables it."""
     dirs, files = entries(directory)
     rows = []
+
+    def extra(size_text, name):
+        if descs is not None:
+            return f'<td class="meta">{descs.get(name, DESC_DEFAULT)}</td>'
+        return f'<td class="meta hide-sm">{size_text}</td>' if with_size else ""
+
     if with_parent:
         rows.append(
             '      <tr><td><a class="dir" href="../">../</a></td>'
             '<td class="meta hide-sm">-</td>'
-            + ('<td class="meta hide-sm">-</td>' if with_size else "")
+            + ('<td class="meta">Parent Directory</td>' if descs is not None
+               else ('<td class="meta hide-sm">-</td>' if with_size else ""))
             + "</tr>"
         )
     for d in dirs:
         rows.append(
             f'      <tr><td><a class="dir" href="{quote(d.name)}/">{html.escape(d.name)}/</a></td>'
             f'<td class="meta hide-sm">{last_modified(d)}</td>'
-            + ('<td class="meta hide-sm">-</td>' if with_size else "")
+            + extra("-", d.name)
             + "</tr>"
         )
     for f in files:
         rows.append(
             f'      <tr><td><a href="{quote(f.name)}">{html.escape(f.name)}</a></td>'
             f'<td class="meta hide-sm">{last_modified(f)}</td>'
-            + (f'<td class="meta hide-sm">{human_size(f.stat().st_size)}</td>' if with_size else "")
+            + extra(human_size(f.stat().st_size), f.name)
             + "</tr>"
         )
     return "\n".join(rows), len(dirs) + len(files)
 
 
-def table_html(rows: str) -> str:
+def table_html(rows: str, desc: bool = False) -> str:
+    last = '<th>Description</th>' if desc else '<th class="hide-sm">Size</th>'
     return (
         "  <table>\n"
         "    <thead>\n"
-        '      <tr><th>Name</th><th class="hide-sm">Last modified</th><th class="hide-sm">Size</th></tr>\n'
+        f'      <tr><th>Name</th><th class="hide-sm">Last modified</th>{last}</tr>\n'
         "    </thead>\n"
         "    <tbody>\n"
         f"{rows}\n"
@@ -91,13 +125,13 @@ def table_html(rows: str) -> str:
     )
 
 
-def build_page(directory: Path) -> str:
+def build_page(directory: Path, descs=None) -> str:
     rel = directory.relative_to(ROOT)  # e.g. books/Chemistry
     depth = len(rel.parts)
     css = "../" * depth + "style.css"
     shown = "~/" + rel.as_posix()
-    rows, count = rows_html(directory, with_parent=True)
-    body = table_html(rows)
+    rows, count = rows_html(directory, with_parent=True, descs=descs)
+    body = table_html(rows, desc=descs is not None)
     total = f'  <p class="meta">total {count}</p>\n' if count == 0 else ""
     return f"""<!doctype html>
 <html lang="en">
@@ -119,7 +153,7 @@ def build_page(directory: Path) -> str:
 """
 
 
-def update_top_page(section: str) -> None:
+def update_top_page(section: str, descs=None) -> None:
     top = ROOT / "index.html"
     text = top.read_text(encoding="utf-8")
     START = f"<!-- {section.upper()}:START -->"
@@ -127,14 +161,16 @@ def update_top_page(section: str) -> None:
     if START not in text or END not in text:
         print(f"index.html has no {section.upper()} markers; skipping", file=sys.stderr)
         return
-    rows, count = rows_html(ROOT / section, with_parent=False, with_size=False)
+    rows, count = rows_html(ROOT / section, with_parent=False, with_size=False, descs=descs)
     if count == 0:
         block = '  <p class="meta">total 0</p>'
     else:
         block = (
             "  <table>\n"
             "    <thead>\n"
-            '      <tr><th>Name</th><th class="hide-sm">Last modified</th></tr>\n'
+            '      <tr><th>Name</th><th class="hide-sm">Last modified</th>'
+            + ("<th>Description</th>" if descs is not None else "")
+            + "</tr>\n"
             "    </thead>\n"
             "    <tbody>\n"
             f"{rows}\n"
@@ -152,17 +188,19 @@ def update_top_page(section: str) -> None:
 
 def main() -> None:
     total = 0
+    descs_all = read_descriptions()  # read before anything is rewritten
     for section in SECTIONS:
+        descs = descs_all if section == DESC_SECTION else None
         base = ROOT / section
         base.mkdir(exist_ok=True)
         dirs = [base] + sorted(p for p in base.rglob("*") if p.is_dir() and not p.name.startswith("."))
         for d in dirs:
-            page = build_page(d)
+            page = build_page(d, descs if d == base else None)
             target = d / "index.html"
             if not target.exists() or target.read_text(encoding="utf-8") != page:
                 target.write_text(page, encoding="utf-8")
         total += len(dirs)
-        update_top_page(section)
+        update_top_page(section, descs)
     print(f"generated {total} listing page(s)")
 
 
