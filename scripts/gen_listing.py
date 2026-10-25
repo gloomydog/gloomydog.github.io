@@ -14,7 +14,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parent.parent
-SECTIONS = ["projects", "books"]  # top-level dirs that get auto-generated listings
+SECTIONS = ["tips", "projects", "books"]  # top-level dirs that get auto-generated listings
 USER = "gloomydog"
 
 
@@ -53,23 +53,23 @@ def entries(directory: Path):
 
 
 DESC_DEFAULT = "-"
-DESC_SECTION = "projects"  # section whose top-level entries carry a hand-written Description
+DESC_SECTIONS = ["tips", "projects"]  # sections whose top-level entries carry a hand-written Description
 
 
-def read_descriptions() -> dict:
+def read_descriptions(section: str) -> dict:
     """Descriptions typed by hand in the top page's projects table (name -> text).
     They are kept across regenerations; new files get DESC_DEFAULT."""
     top = ROOT / "index.html"
     if not top.exists():
         return {}
     text = top.read_text(encoding="utf-8")
-    start, end = f"<!-- {DESC_SECTION.upper()}:START -->", f"<!-- {DESC_SECTION.upper()}:END -->"
+    start, end = f"<!-- {section.upper()}:START -->", f"<!-- {section.upper()}:END -->"
     if start not in text or end not in text:
         return {}
     block = text.split(start, 1)[1].split(end, 1)[0]
     out = {}
     for m in re.finditer(
-        r'<td><a[^>]*href="' + DESC_SECTION + r'/([^"]+?)/?">.*?</a></td>.*?<td class="meta">(.*?)</td>',
+        r'<td><a[^>]*href="' + section + r'/([^"]+?)/?">.*?</a></td>.*?<td class="meta">(.*?)</td>',
         block,
     ):
         out[html.unescape(m.group(1))] = m.group(2)
@@ -162,7 +162,7 @@ def update_top_page(section: str, descs=None) -> None:
         print(f"index.html has no {section.upper()} markers; skipping", file=sys.stderr)
         return
     rows, count = rows_html(ROOT / section, with_parent=False, with_size=False, descs=descs)
-    if count == 0:
+    if count == 0 and descs is None:
         block = '  <p class="meta">total 0</p>'
     else:
         block = (
@@ -188,9 +188,9 @@ def update_top_page(section: str, descs=None) -> None:
 
 def main() -> None:
     total = 0
-    descs_all = read_descriptions()  # read before anything is rewritten
     for section in SECTIONS:
-        descs = descs_all if section == DESC_SECTION else None
+        # read before anything is rewritten
+        descs = read_descriptions(section) if section in DESC_SECTIONS else None
         base = ROOT / section
         base.mkdir(exist_ok=True)
         dirs = [base] + sorted(p for p in base.rglob("*") if p.is_dir() and not p.name.startswith("."))
