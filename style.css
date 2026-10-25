@@ -49,3 +49,16 @@ footer { margin-top: 32px; color: var(--muted); font-size: .85rem; }
 .quote p { margin: 0 0 8px; }
 .quote cite { display: block; color: var(--muted); font-family: inherit; font-size: 12px; line-height: 1.5; }
 .quote cite em { font-style: italic; }
+
+/* article pages (tips etc.) */
+article.doc h1 { font-size: 1.3rem; font-weight: 700; color: var(--fg); margin: 0 0 12px; }
+article.doc h2 { font-size: 1.1rem; font-weight: 700; color: var(--fg); margin: 32px 0 8px; }
+article.doc h2::before { content: "## "; color: var(--muted); }
+article.doc ol, article.doc ul { max-width: 66ch; padding-left: 1.6em; margin: 0 0 12px; }
+article.doc li { margin: 0 0 6px; }
+article.doc code { color: var(--green); }
+article.doc pre { margin: 0 0 14px; padding: 10px 14px; background: #111; border: 1px solid var(--border); overflow-x: auto; }
+article.doc pre code { color: var(--fg); }
+article.doc pre code::before { content: "$ "; color: var(--muted); }
+article.doc figure { margin: 0 0 18px; }
+article.doc img { display: block; max-width: 100%; height: auto; border: 1px solid var(--border); }

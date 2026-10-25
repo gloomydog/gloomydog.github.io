@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mullvad VPN on Linux with WireGuard | gloomydog</title>
+<link rel="stylesheet" href="../style.css?v=4">
+</head>
+<body>
+<main>
+  <div class="prompt"><span class="user">gloomydog</span>:<span class="path">~/tips</span>$ cat mullvad.html</div>
+  <article class="doc">
+    <h1>Setting Up Mullvad VPN on Linux with WireGuard</h1>
+    <p>This tutorial explains how to activate Mullvad VPN on Linux using WireGuard instead of the official app.</p>
+
+    <h2>Generate a WireGuard configuration</h2>
+    <ol>
+      <li>Visit the official Mullvad website, go to your account, and find <strong>Downloads &gt; WireGuard configuration</strong>.</li>
+      <li>Select your OS (Linux, of course) and click <strong>Generate key</strong>.</li>
+      <li>Scroll down and select a location and a server. Some countries offer multiple servers. Here, I selected Switzerland and <code>ch-zrh-wg-202</code>.</li>
+      <li>Choose your connection protocol and content-blocking options, then download the file to your PC.</li>
+    </ol>
+    <p>If you prefer, you can install the Mullvad app on Linux instead. In this tutorial, I use WireGuard directly rather than the app.</p>
+    <figure><img src="../img/mullvad-1.png" alt="Mullvad account page showing the WireGuard configuration download" loading="lazy"></figure>
+    <figure><img src="../img/mullvad-2.png" alt="Selecting the location and server for the WireGuard configuration" loading="lazy"></figure>
+
+    <h2>Edit the DNS setting (optional)</h2>
+    <p>I use AdGuard Home as my DNS server, so I had to edit the configuration file. The file contains a default DNS entry, which I commented out to disable it, because it conflicted with my AdGuard DNS settings.</p>
+    <figure><img src="../img/mullvad-3.png" alt="Configuration file with the DNS line commented out" loading="lazy"></figure>
+    <p>If you are not using your own DNS, skip this step.</p>
+
+    <h2>Install the configuration file</h2>
+    <p>Move the downloaded file to the WireGuard directory and rename it as you like. I renamed mine to <code>mullvad_swiss.conf</code>.</p>
+    <pre><code>sudo mv ~/Downloads/ch-zrh-wg-202.conf /etc/wireguard/mullvad_swiss.conf</code></pre>
+    <p>You can check the contents with:</p>
+    <pre><code>sudo cat /etc/wireguard/mullvad_swiss.conf</code></pre>
+
+    <h2>Connect to Mullvad VPN</h2>
+    <pre><code>sudo wg-quick up mullvad_swiss</code></pre>
+    <figure><img src="../img/mullvad-4.png" alt="Terminal output after connecting with wg-quick up" loading="lazy"></figure>
+
+    <h2>Disconnect</h2>
+    <p>To disconnect, run:</p>
+    <pre><code>sudo wg-quick down mullvad_swiss</code></pre>
+    <figure><img src="../img/mullvad-5.png" alt="Terminal output after disconnecting with wg-quick down" loading="lazy"></figure>
+  </article>
+  <div class="prompt"><a href="./">$ cd ..</a></div>
+  <footer>&copy; 2026 gloomydog</footer>
+</main>
+</body>
+</html>
