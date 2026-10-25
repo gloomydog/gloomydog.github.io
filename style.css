@@ -53,7 +53,7 @@ footer { margin-top: 32px; color: var(--muted); font-size: .85rem; }
 /* article pages (tips etc.) */
 article.doc h1 { font-size: 1.3rem; font-weight: 700; color: var(--fg); margin: 0 0 12px; }
 article.doc h2 { font-size: 1.1rem; font-weight: 700; color: var(--fg); margin: 32px 0 8px; }
-article.doc h2::before { content: "## "; color: var(--muted); }
+article.doc h2::before { content: none; color: var(--muted); }
 article.doc ol, article.doc ul { max-width: 66ch; padding-left: 1.6em; margin: 0 0 12px; }
 article.doc li { margin: 0 0 6px; }
 article.doc code { color: var(--green); }
