@@ -14,7 +14,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parent.parent
-SECTIONS = ["tips", "projects", "books"]  # top-level dirs that get auto-generated listings
+SECTIONS = ["blog", "tips", "projects", "books"]  # top-level dirs that get auto-generated listings
 USER = "gloomydog"
 
 
@@ -53,7 +53,7 @@ def entries(directory: Path):
 
 
 DESC_DEFAULT = "-"
-DESC_SECTIONS = ["tips", "projects"]  # sections whose top-level entries carry a hand-written Description
+DESC_SECTIONS = ["blog", "tips", "projects"]  # sections whose top-level entries carry a hand-written Description
 
 
 def read_descriptions(section: str) -> dict:

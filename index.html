@@ -12,7 +12,7 @@
   <h1 class="site-title">gloomydog's home page</h1>
   <div class="hero-row">
     <img class="hero" src="https://github.com/gloomydog.png" alt="gloomydog" width="160" height="160" onerror="this.style.display='none'">
-    <blockquote class="quote">
+    <blockquote class="quote" id="quote">
       <p>Looting is a method of direct redistribution of wealth, from the store owners and capitalists to the poor.</p>
       <cite>&mdash; Vicky Osterweil, <em>In Defense of Looting</em></cite>
     </blockquote>
@@ -39,6 +39,18 @@
   </table>
   <!-- PROJECTS:END -->
   
+  <div class="prompt"><span class="user">gloomydog</span>:<span class="path">~</span>$ ls -l blog/</div>
+  <!-- BLOG:START -->
+  <table>
+    <thead>
+      <tr><th>Name</th><th class="hide-sm">Last modified</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+
+    </tbody>
+  </table>
+  <!-- BLOG:END -->
+
   <div class="prompt"><span class="user">gloomydog</span>:<span class="path">~</span>$ ls -l tips/</div>
   <!-- TIPS:START -->
   <table>
@@ -82,5 +94,28 @@
   <div class="prompt"><span class="user">gloomydog</span>:<span class="path">~</span>$ <span class="cursor"></span></div>
   <footer>&copy; 2026 gloomydog</footer>
 </main>
+<script src="quotes.js"></script>
+<script>
+(function () {
+  var q = window.QUOTES;
+  if (!q || !q.length) return;
+  var x = q[Math.floor(Math.random() * q.length)];
+  var el = document.getElementById("quote");
+  if (!el) return;
+  el.textContent = "";
+  var p = document.createElement("p");
+  p.textContent = x.text;
+  var c = document.createElement("cite");
+  c.appendChild(document.createTextNode("\u2014 " + x.author));
+  if (x.source) {
+    c.appendChild(document.createTextNode(", "));
+    var em = document.createElement("em");
+    em.textContent = x.source;
+    c.appendChild(em);
+  }
+  el.appendChild(p);
+  el.appendChild(c);
+})();
+</script>
 </body>
 </html>
