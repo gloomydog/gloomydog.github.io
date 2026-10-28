@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tor on Linux | gloomydog</title>
+<link rel="stylesheet" href="../style.css?v=5">
+</head>
+<body>
+<main>
+  <div class="prompt"><span class="user">gloomydog</span>:<span class="path">~/tips</span>$ cat tor.html</div>
+  <article class="doc">
+    <h1>Tor on Linux</h1>
+    <p>I show you how to install and run Tor on Arch Linux.</p>
+
+    <h2>Install</h2>
+    <pre><code>sudo pacman -S tor torsocks torbrowser-launcher</code></pre>
+
+    <h2>Initialize</h2>
+    <pre><code>sudo systemctl enable --now tor.service
+systemctl status tor</code></pre>
+    <p>The status should show <code>active (running)</code>. The log should show <code>Bootstrapped 100%</code>.</p>
+    <figure><img src="../img/tor-1.png" alt="systemctl status tor showing active (running) and Bootstrapped 100%" loading="lazy"></figure>
+
+    <h2>Check that Tor is working</h2>
+    <pre><code>curl --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/api/ip</code></pre>
+    <p>Expected output:</p>
+    <pre><code>{"IsTor":true,"IP":"185.220.101.169"}</code></pre>
+    <p><code>"IsTor":true</code> means the request left through a Tor exit node. The IP is the exit node's address, not yours.</p>
+
+    <h2>Check for DNS leaks</h2>
+    <p>A request can go through Tor and still leak DNS. If the client resolves the hostname locally, the lookup goes to your normal resolver, which can see which domain you visited.</p>
+    <p><strong>Terminal A</strong>: capture DNS packets.</p>
+    <pre><code>sudo tcpdump -i any -n port 53</code></pre>
+    <p><strong>Terminal B</strong>: run the following commands.</p>
+
+    <h3>Case 1: <code>--socks5</code> (DNS leak)</h3>
+    <pre><code>curl --socks5 127.0.0.1:9050 https://check.torproject.org/api/ip</code></pre>
+    <p>Terminal A shows:</p>
+    <pre><code>127.0.0.1.51689 &gt; 127.0.0.1.53: AAAA? check.torproject.org.
+127.0.0.1.53218 &gt; 127.0.0.1.53: A? check.torproject.org.
+127.0.0.1.53 &gt; 127.0.0.1.53218: A 116.202.120.181</code></pre>
+    <p>curl asked the local resolver (127.0.0.1:53) for the IP of <code>check.torproject.org</code>, then sent only the IP address to Tor. The lookup happened outside Tor, and the local resolver forwarded it upstream. This is a DNS leak.</p>
+
+    <h3>Case 2: <code>--socks5-hostname</code> (no leak)</h3>
+    <pre><code>curl --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/api/ip</code></pre>
+    <p>In contrast, Terminal A shows no query for <code>check.torproject.org</code>. curl passes the hostname to Tor, and the exit node resolves it. The local resolver is never used in this case.</p>
+    <p>To avoid DNS leaks, the following commands are equivalent:</p>
+    <pre><code>curl -x socks5h://127.0.0.1:9050 https://check.torproject.org/api/ip
+torsocks curl https://check.torproject.org/api/ip
+export ALL_PROXY=socks5h://127.0.0.1:9050</code></pre>
+
+    <h2>Change the exit node</h2>
+    <p>Tor builds a circuit of three relays: entry (guard), middle, and exit. Websites only see the exit node's IP address. You can ask Tor to build a new circuit, which usually gives you a different exit node.</p>
+
+    <h3>Method 1: Send <code>NEWNYM</code> through the control port</h3>
+    <p>Use this method when you want to switch circuits for all new connections.</p>
+    <p><code>NEWNYM</code> is a signal sent to Tor's control port. It tells Tor to use fresh circuits for new connections, so the exit node and IP usually change.</p>
+    <p><strong>1. Generate a hashed password</strong></p>
+    <pre><code>tor --hash-password &lt;password&gt;</code></pre>
+    <p>I use <code>abc</code> as the password here, which generates the following hash.</p>
+    <figure><img src="../img/tor-2.png" alt="tor --hash-password abc output" loading="lazy"></figure>
+    <p><strong>2. Add the following to <code>/etc/tor/torrc</code></strong></p>
+    <pre><code>ControlPort 9051
+HashedControlPassword 16:4CC473A06D893E72600A8B6574BDB9E278E048334D9007AD4469463A04</code></pre>
+    <p><code>ControlPort</code> listens on localhost only by default. Do not expose it to other machines.</p>
+    <p><strong>3. Restart Tor</strong></p>
+    <pre><code>sudo systemctl restart tor</code></pre>
+    <p><strong>4. Send the <code>NEWNYM</code> signal</strong></p>
+    <pre><code>printf 'AUTHENTICATE "abc"\r\nSIGNAL NEWNYM\r\nQUIT\r\n' | nc 127.0.0.1 9051</code></pre>
+    <p>Expected response (<code>250 OK</code> twice):</p>
+    <figure><img src="../img/tor-3.png" alt="Control port response: 250 OK twice" loading="lazy"></figure>
+    <p><strong>5. Check that the exit IP changed</strong></p>
+    <pre><code>curl --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/api/ip</code></pre>
+
+    <h3>Method 2: Use a different SOCKS username</h3>
+    <p>Use this method when you want different circuits for different commands, without touching the control port.</p>
+    <p>Tor isolates circuits by SOCKS username and password. Connections that use different credentials never share a circuit, so they usually leave through different exit nodes.</p>
+    <pre><code>curl -x socks5h://a:x@127.0.0.1:9050 https://check.torproject.org/api/ip
+curl -x socks5h://b:x@127.0.0.1:9050 https://check.torproject.org/api/ip</code></pre>
+    <p>Here <code>a</code> and <code>b</code> are arbitrary usernames, and <code>x</code> is a dummy password.</p>
+    <p>As with Method 1, a different circuit does not guarantee a different exit IP.</p>
+  </article>
+  <div class="prompt"><a href="./">$ cd ..</a></div>
+  <footer>&copy; 2026 gloomydog</footer>
+</main>
+</body>
+</html>
