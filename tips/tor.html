@@ -80,6 +80,42 @@ HashedControlPassword 16:4CC473A06D893E72600A8B6574BDB9E278E048334D9007AD4469463
 curl -x socks5h://b:x@127.0.0.1:9050 https://check.torproject.org/api/ip</code></pre>
     <p>Here <code>a</code> and <code>b</code> are arbitrary usernames, and <code>x</code> is a dummy password.</p>
     <p>As with Method 1, a different circuit does not guarantee a different exit IP.</p>
+
+    <h2>Bridge</h2>
+    <p>A Bridge is a Tor relay that is not listed in the public relay list. Generally, Tor connects to a publicly listed entry node. Because the list is public, an ISP or a government can block those IP addresses or detect that you are using Tor. Bridges are not in the public list, so they are much harder to block in bulk.</p>
+    <p>Bridges can be combined with a pluggable transport such as <code>obfs4</code>. <code>obfs4</code> makes your traffic look like random data, so it is hard to recognize as Tor. Tor traffic is already encrypted, so the ISP cannot read its contents anyway. What <code>obfs4</code> hides is the fact that you are using Tor at all.</p>
+
+    <h3>How it works</h3>
+    <pre><code>Normal: you -&gt; public entry node -&gt; middle -&gt; exit
+Bridge: you -&gt; bridge (via obfs4) -&gt; middle -&gt; exit</code></pre>
+
+    <p><strong>1. Install the plugin</strong></p>
+    <p><code>lyrebird</code> is the pluggable transport that implements <code>obfs4</code>. It is not in the official repositories, so install it from the AUR. The binary is installed as <code>/usr/bin/lyrebird</code>.</p>
+    <pre><code>yay -S lyrebird-proxy</code></pre>
+
+    <p><strong>2. Get bridges from the official site</strong></p>
+    <p>Get <code>obfs4</code> bridges from <code>https://bridges.torproject.org</code>.</p>
+    <figure><img src="../img/tor-bridge-1.png" alt="bridges.torproject.org options page with obfs4 selected" loading="lazy"></figure>
+    <figure><img src="../img/tor-bridge-2.png" alt="BridgeDB page showing the bridge lines" loading="lazy"></figure>
+
+    <p><strong>3. Add these bridges to <code>/etc/tor/torrc</code></strong></p>
+    <p>Write <code>UseBridges 1</code> once, then add one <code>Bridge</code> line per bridge. Tor uses one bridge at a time. The others are backups, used when the current one is blocked or goes down.</p>
+    <pre><code>UseBridges 1
+ClientTransportPlugin obfs4 exec /usr/bin/lyrebird
+Bridge obfs4 23.94.174.196:9130....
+Bridge obfs4 100.8.170.63:50164....</code></pre>
+    <figure><img src="../img/tor-bridge-3.png" alt="torrc with UseBridges, ClientTransportPlugin and Bridge lines" loading="lazy"></figure>
+
+    <p><strong>4. Restart Tor</strong></p>
+    <pre><code>sudo systemctl restart tor
+journalctl -u tor -f</code></pre>
+    <p>The log should show <code>Bootstrapped 100%</code>.</p>
+    <figure><img src="../img/tor-bridge-4.png" alt="journalctl log showing Bootstrapped 100% through a bridge" loading="lazy"></figure>
+
+    <p><strong>5. Check that bridges are used</strong></p>
+    <p>The outgoing connection to the bridge is made by <code>lyrebird</code>, not by <code>tor</code>, so filter by <code>lyrebird</code>. The remote address should match one of your bridge IPs. The connection between <code>tor</code> and <code>lyrebird</code> on <code>127.0.0.1</code> is local and is expected.</p>
+    <pre><code>sudo ss -tnp | grep lyrebird</code></pre>
+    <figure><img src="../img/tor-bridge-5.png" alt="ss output showing lyrebird connected to the bridge" loading="lazy"></figure>
   </article>
   <div class="prompt"><a href="./">$ cd ..</a></div>
   <footer>&copy; 2026 gloomydog</footer>
