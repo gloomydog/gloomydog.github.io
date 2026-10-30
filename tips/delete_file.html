@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Completely Erasing Data on Linux | gloomydog</title>
+<link rel="stylesheet" href="../style.css?v=5">
+</head>
+<body>
+<main>
+  <div class="prompt"><span class="user">gloomydog</span>:<span class="path">~/tips</span>$ cat delete_file.html</div>
+  <article class="doc">
+    <h1>Completely Erasing Data on Linux</h1>
+    <p>If you use Linux for long enough, you will run into the infamous <code>sudo rm -rf /</code> meme, which wipes out every file on the system. However, <code>rm</code> does not actually erase data. It only removes the reference to the file in the filesystem, and the data blocks stay on the disk until they are overwritten. Forensic tools can often recover them.</p>
+    <p>This article presents how to erase data properly with <code>shred</code> and <code>dd</code>, and verifies the result with a harmless experiment using a disk image file.</p>
+    <p>&ldquo;Erasing completely&rdquo; means overwriting every part of the storage with zeros or random data so the original content can no longer be read.</p>
+    <p><em>These methods are effective for HDDs and USB flash drives, but not reliable for SSDs.</em></p>
+
+    <h2>Preparation for img file</h2>
+    <p>All commands below operate on a file, not your real disk.</p>
+
+    <h3>1. Make a void file</h3>
+    <p><code>test.img</code> is a 200 MB sparse file. It is treated as all zeros and takes almost no real disk space.</p>
+    <pre><code>truncate -s 200M test.img</code></pre>
+    <p>You can check it with <code>hexdump</code>.</p>
+    <figure><img src="../img/delete-file-1.png" alt="hexdump of the empty test.img" loading="lazy"></figure>
+
+    <h3>2. Turn the file into a block device</h3>
+    <p>This makes the <code>test.img</code> file appear as a block device (<code>/dev/loop0</code>), so Linux treats it like a real disk.</p>
+    <pre><code>sudo losetup -f --show test.img</code></pre>
+    <figure><img src="../img/delete-file-2.png" alt="losetup output showing /dev/loop0" loading="lazy"></figure>
+
+    <h3>3. Create an ext4 filesystem</h3>
+    <p>This writes the management structures to the disk.</p>
+    <pre><code>sudo mkfs.ext4 /dev/loop0</code></pre>
+    <figure><img src="../img/delete-file-3.png" alt="mkfs.ext4 output" loading="lazy"></figure>
+
+    <h3>4. Write a marker file</h3>
+    <p>I write a recognizable string, <code>SECRET_MARKER_12345</code>, so I can later check whether it remains in the image. A disk must be <em>mounted</em> before Linux can read or write files on it. <code>mount</code> attaches the disk to a directory (here <code>/mnt</code>), and <code>umount</code> detaches it and flushes pending writes.</p>
+    <pre><code>sudo mount /dev/loop0 /mnt &amp;&amp; echo "SECRET_MARKER_12345" | sudo tee /mnt/secret.txt &amp;&amp; sudo umount /mnt</code></pre>
+    <figure><img src="../img/delete-file-4.png" alt="Writing secret.txt to the mounted image" loading="lazy"></figure>
+    <p>You can also check with <code>hexdump</code>. <code>test.img</code> now contains some data.</p>
+    <figure><img src="../img/delete-file-5.png" alt="hexdump of test.img after mkfs" loading="lazy"></figure>
+
+    <h3>5. Check that the marker is in the image</h3>
+    <p>Expected output is <code>1</code> or more. <code>-a</code> treats binary data as text, and <code>-c</code> prints the number of matching lines.</p>
+    <pre><code>grep -a -c SECRET_MARKER test.img</code></pre>
+    <figure><img src="../img/delete-file-6.png" alt="grep count of the marker" loading="lazy"></figure>
+
+    <h2>Method 1: rm (data is not erased)</h2>
+    <p><code>rm</code> deletes the file from the filesystem's point of view, but not the data itself.</p>
+    <pre><code>sudo mount /dev/loop0 /mnt &amp;&amp; sudo rm /mnt/secret.txt &amp;&amp; sudo umount /mnt</code></pre>
+    <p>Check again:</p>
+    <pre><code>grep -a -c SECRET_MARKER test.img</code></pre>
+    <p>Expected output is <code>1</code>. You can also see the string directly with:</p>
+    <pre><code>strings test.img | grep SECRET</code></pre>
+    <figure><img src="../img/delete-file-7.png" alt="The marker is still found after rm" loading="lazy"></figure>
+
+    <h2>Method 2: dd (overwrite the whole device with zeros)</h2>
+    <p>This reads zeros from <code>/dev/zero</code> and writes them over the entire <code>/dev/loop0</code>. <code>conv=fsync</code> means flush everything to disk before finishing.</p>
+    <pre><code>sudo dd if=/dev/zero of=/dev/loop0 bs=1M conv=fsync status=progress</code></pre>
+    <figure><img src="../img/delete-file-8.png" alt="dd output" loading="lazy"></figure>
+    <p>Check again:</p>
+    <pre><code>grep -a -c SECRET_MARKER test.img</code></pre>
+    <p>Expected output is <code>0</code>.</p>
+    <p>To verify that <em>every</em> byte is zero, compare the image against <code>/dev/zero</code>. Expected output is <code>cmp: EOF on test.img after byte 209715200</code>. It reaches the end of <code>test.img</code> without finding any difference. If any non-zero byte exists, <code>cmp</code> reports its position instead.</p>
+    <pre><code>cmp test.img /dev/zero</code></pre>
+    <figure><img src="../img/delete-file-9.png" alt="cmp output: EOF on test.img after byte 209715200" loading="lazy"></figure>
+    <p>After this step the filesystem is gone, so you must redo the preparation steps (1&ndash;4) before trying Method 3. If <code>test.img</code> and the loop device still exist, steps 3 and 4 are enough.</p>
+
+    <h2>Method 3: shred</h2>
+    <p><code>shred</code> overwrites data with random patterns, optionally followed by zeros.</p>
+
+    <h3>3-1. Shred a single file</h3>
+    <pre><code>sudo mount /dev/loop0 /mnt &amp;&amp; sudo shred -v -n 3 -z -u /mnt/secret.txt &amp;&amp; sudo umount /mnt</code></pre>
+    <p>Check:</p>
+    <pre><code>grep -a -c SECRET_MARKER test.img</code></pre>
+    <p>Expected output is <code>0</code>.</p>
+
+    <h3>3-2. Shred the whole device</h3>
+    <p>This is a more reliable approach, equivalent to Method 2.</p>
+    <pre><code>sudo shred -v -n 1 -z /dev/loop0</code></pre>
+    <figure><img src="../img/delete-file-10.png" alt="shred output" loading="lazy"></figure>
+    <p>Check:</p>
+    <pre><code>grep -a -c SECRET_MARKER test.img
+cmp test.img /dev/zero</code></pre>
+    <figure><img src="../img/delete-file-11.png" alt="grep and cmp results after shred" loading="lazy"></figure>
+    <p>Without <code>-z</code>, the device would end up filled with random data, and <code>cmp</code> would report a difference. That is fine for erasing, but it cannot be used to prove &ldquo;all zeros.&rdquo;</p>
+
+    <h2>Clean up</h2>
+    <p>Detach the loop device and delete the image.</p>
+    <pre><code>sudo losetup -d /dev/loop0
+rm test.img</code></pre>
+
+    <h2>Summary</h2>
+    <p>As this article shows, <code>rm</code> is not a reliable way to delete your data. It only removes the reference to the file, and the data itself remains on the disk. To erase data properly, overwrite it with <code>dd</code> (or <code>shred</code>).</p>
+    <p>You can use the following command instead of <code>sudo rm -rf /</code>. Be careful: it destroys everything on the target disk.</p>
+    <pre><code>sudo dd if=/dev/zero of=/dev/sda bs=4M</code></pre>
+  </article>
+  <div class="prompt"><a href="./">$ cd ..</a></div>
+  <footer>&copy; 2026 gloomydog</footer>
+</main>
+</body>
+</html>
