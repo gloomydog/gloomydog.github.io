@@ -63,4 +63,3 @@ article.doc pre code::before { content: "$ "; color: var(--muted); }
 article.doc figure { margin: 0 0 18px; }
 article.doc img { display: block; max-width: 100%; height: auto; border: 1px solid var(--border); }
 article.doc h3 { font-size: 1rem; font-weight: 700; color: var(--fg); margin: 24px 0 6px; }
-.new { color: var(--green); font-weight: 700; }
