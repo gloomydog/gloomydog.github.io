@@ -16,6 +16,8 @@ from urllib.parse import quote
 ROOT = Path(__file__).resolve().parent.parent
 SECTIONS = ["blog", "tips", "projects", "books"]  # top-level dirs that get auto-generated listings
 USER = "gloomydog"
+# Pages not promoted via the feed or the [NEW] marker (explosives synthesis content).
+NO_PROMOTE = {"projects/APEX.html", "projects/HMTD.html"}
 
 
 def last_modified(path: Path) -> str:
@@ -30,6 +32,20 @@ def last_modified(path: Path) -> str:
     except Exception:
         pass
     return datetime.date.fromtimestamp(path.stat().st_mtime).isoformat()
+
+
+def added_date(path: Path) -> str:
+    """Date (YYYY-MM-DD) the file was first committed; falls back to last_modified."""
+    try:
+        out = subprocess.run(
+            ["git", "log", "--diff-filter=A", "--format=%cs", "--", str(path)],
+            cwd=ROOT, capture_output=True, text=True, check=True,
+        ).stdout.split()
+        if out:
+            return out[-1]
+    except Exception:
+        pass
+    return last_modified(path)
 
 
 def human_size(n: int) -> str:
@@ -103,7 +119,7 @@ def rows_html(directory: Path, with_parent: bool, with_size: bool = True, descs=
         )
     for f in files:
         rows.append(
-            f'      <tr><td><a href="{quote(f.name)}">{html.escape(f.name)}</a></td>'
+            f'      <tr><td><a{"" if f.relative_to(ROOT).as_posix() in NO_PROMOTE else f" data-added=\"{added_date(f)}\""} href="{quote(f.name)}">{html.escape(f.name)}</a></td>'
             f'<td class="meta hide-sm">{last_modified(f)}</td>'
             + extra(human_size(f.stat().st_size), f.name)
             + "</tr>"
@@ -148,6 +164,7 @@ def build_page(directory: Path, descs=None) -> str:
 {total}  <div class="prompt"><span class="user">{USER}</span>:<span class="path">{html.escape(shown)}</span>$ <span class="cursor"></span></div>
   <footer>&copy; 2026 {USER}</footer>
 </main>
+<script src="{"../" * depth}new.js"></script>
 </body>
 </html>
 """
@@ -186,6 +203,66 @@ def update_top_page(section: str, descs=None) -> None:
         top.write_text(new, encoding="utf-8")
 
 
+SITE = "https://gloomydog.github.io"
+FEED_SECTIONS = ["blog", "tips", "projects"]
+FEED_LIMIT = 30
+
+
+def page_title(path: Path) -> str:
+    m = re.search(r"<title>(.*?)</title>", path.read_text(encoding="utf-8"), re.S)
+    title = html.unescape(m.group(1)).strip() if m else path.stem
+    return re.sub(r"\s*\|\s*" + USER + r"\s*$", "", title)
+
+
+def build_feed() -> None:
+    items = []
+    for section in FEED_SECTIONS:
+        base = ROOT / section
+        if not base.is_dir():
+            continue
+        descs = read_descriptions(section)
+        for f in base.rglob("*.html"):
+            if f.name == "index.html" or any(part.startswith(".") for part in f.parts):
+                continue
+            rel = f.relative_to(ROOT).as_posix()
+            if rel in NO_PROMOTE:
+                continue
+            top_name = f.relative_to(base).as_posix()
+            added = added_date(f)
+            items.append((added, rel, page_title(f), html.unescape(descs.get(top_name, "")).strip(), last_modified(f)))
+    items.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    items = items[:FEED_LIMIT]
+    updated = max([i[4] for i in items] + [i[0] for i in items], default=datetime.date.today().isoformat())
+    parts = [
+        '<?xml version="1.0" encoding="utf-8"?>',
+        '<feed xmlns="http://www.w3.org/2005/Atom">',
+        f"  <title>{USER}'s home page</title>",
+        f'  <link href="{SITE}/feed.xml" rel="self"/>',
+        f'  <link href="{SITE}/"/>',
+        f"  <id>{SITE}/</id>",
+        f"  <updated>{updated}T00:00:00Z</updated>",
+        f"  <author><name>{USER}</name></author>",
+    ]
+    for added, rel, title, desc, mod in items:
+        url = f"{SITE}/{quote(rel)}"
+        parts += [
+            "  <entry>",
+            f"    <title>{html.escape(title)}</title>",
+            f'    <link href="{url}"/>',
+            f"    <id>{url}</id>",
+            f"    <published>{added}T00:00:00Z</published>",
+            f"    <updated>{max(mod, added)}T00:00:00Z</updated>",
+        ]
+        if desc:
+            parts.append(f"    <summary>{html.escape(desc)}</summary>")
+        parts.append("  </entry>")
+    parts.append("</feed>")
+    new = "\n".join(parts) + "\n"
+    target = ROOT / "feed.xml"
+    if not target.exists() or target.read_text(encoding="utf-8") != new:
+        target.write_text(new, encoding="utf-8")
+
+
 def main() -> None:
     total = 0
     for section in SECTIONS:
@@ -201,6 +278,7 @@ def main() -> None:
                 target.write_text(page, encoding="utf-8")
         total += len(dirs)
         update_top_page(section, descs)
+    build_feed()
     print(f"generated {total} listing page(s)")
 
 

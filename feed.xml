@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>gloomydog's home page</title>
+  <link href="https://gloomydog.github.io/feed.xml" rel="self"/>
+  <link href="https://gloomydog.github.io/"/>
+  <id>https://gloomydog.github.io/</id>
+  <updated>2026-10-30T00:00:00Z</updated>
+  <author><name>gloomydog</name></author>
+  <entry>
+    <title>Completely Erasing Data on Linux</title>
+    <link href="https://gloomydog.github.io/tips/delete_file.html"/>
+    <id>https://gloomydog.github.io/tips/delete_file.html</id>
+    <published>2026-10-30T00:00:00Z</published>
+    <updated>2026-10-30T00:00:00Z</updated>
+    <summary>How to wipe out your data properly</summary>
+  </entry>
+  <entry>
+    <title>Tor on Linux</title>
+    <link href="https://gloomydog.github.io/tips/tor.html"/>
+    <id>https://gloomydog.github.io/tips/tor.html</id>
+    <published>2026-10-29T00:00:00Z</published>
+    <updated>2026-10-29T00:00:00Z</updated>
+    <summary>tutorial for setting up Tor on Linux</summary>
+  </entry>
+  <entry>
+    <title>Thought on South American rigged Elections and Stock market</title>
+    <link href="https://gloomydog.github.io/blog/South_American_election.html"/>
+    <id>https://gloomydog.github.io/blog/South_American_election.html</id>
+    <published>2026-10-28T00:00:00Z</published>
+    <updated>2026-10-28T00:00:00Z</updated>
+    <summary>Thought on South American rigged elections and the stock market</summary>
+  </entry>
+  <entry>
+    <title>Mullvad VPN on Linux with WireGuard</title>
+    <link href="https://gloomydog.github.io/tips/mullvad.html"/>
+    <id>https://gloomydog.github.io/tips/mullvad.html</id>
+    <published>2026-10-25T00:00:00Z</published>
+    <updated>2026-10-25T00:00:00Z</updated>
+    <summary>tutorial for setting up Mullvad VPN on Linux with WireGuard</summary>
+  </entry>
+</feed>
