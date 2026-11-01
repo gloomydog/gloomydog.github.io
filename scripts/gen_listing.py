@@ -16,6 +16,9 @@ from urllib.parse import quote
 ROOT = Path(__file__).resolve().parent.parent
 SECTIONS = ["blog", "tips", "projects", "books"]  # top-level dirs that get auto-generated listings
 USER = "gloomydog"
+NEW_COUNT = 3  # how many entries "cat new.txt" shows
+# Pages never announced in new.txt (explosives synthesis content).
+NO_ANNOUNCE = {"projects/APEX.html", "projects/HMTD.html"}
 
 
 def last_modified(path: Path) -> str:
@@ -186,6 +189,81 @@ def update_top_page(section: str, descs=None) -> None:
         top.write_text(new, encoding="utf-8")
 
 
+def page_title(path: Path) -> str:
+    m = re.search(r"<title>(.*?)</title>", path.read_text(encoding="utf-8"), re.S)
+    title = html.unescape(m.group(1)).strip() if m else path.stem
+    return re.sub(r"\\s*\\|\\s*" + USER + r"\\s*$", "", title)
+
+
+def git_times(path: Path):
+    """(added_ts, updated_ts, added_date, updated_date) from git; mtime fallback."""
+    def run(*args):
+        try:
+            return subprocess.run(["git", "log", *args, "--", str(path)], cwd=ROOT,
+                                  capture_output=True, text=True, check=True).stdout.split()
+        except Exception:
+            return []
+    upd = run("-1", "--format=%ct %cs")
+    add = run("--diff-filter=A", "--format=%ct %cs")
+    if len(upd) >= 2:
+        u_ts, u_d = int(upd[0]), upd[1]
+    else:
+        m = int(path.stat().st_mtime)
+        u_ts, u_d = m, datetime.date.fromtimestamp(m).isoformat()
+    if len(add) >= 2:
+        a_ts, a_d = int(add[-2]), add[-1]
+    else:
+        a_ts, a_d = u_ts, u_d
+    return a_ts, u_ts, a_d, u_d
+
+
+def update_new_block() -> None:
+    top = ROOT / "index.html"
+    text = top.read_text(encoding="utf-8")
+    START, END = "<!-- NEW:START -->", "<!-- NEW:END -->"
+    if START not in text or END not in text:
+        print("index.html has no NEW markers; skipping", file=sys.stderr)
+        return
+    items = []
+    for section in SECTIONS:
+        base = ROOT / section
+        if not base.is_dir():
+            continue
+        descs = read_descriptions(section) if section in DESC_SECTIONS else {}
+        for f in base.rglob("*"):
+            rel = f.relative_to(ROOT).as_posix()
+            if (not f.is_file() or f.name == "index.html" or rel in NO_ANNOUNCE
+                    or any(part.startswith(".") for part in f.relative_to(ROOT).parts)):
+                continue
+            a_ts, u_ts, a_d, u_d = git_times(f)
+            title = page_title(f) if f.suffix == ".html" else f.name
+            items.append({
+                "ts": u_ts, "date": u_d, "new": a_d == u_d, "rel": rel,
+                "name": f.name, "desc": descs.get(f.relative_to(base).as_posix(), ""),
+            })
+    items.sort(key=lambda i: (i["ts"], i["rel"]), reverse=True)
+    rows = []
+    for i in items[:NEW_COUNT]:
+        tag = '<span class="tag-new">new</span>' if i["new"] else '<span class="tag-upd">updated</span>'
+        desc = i["desc"] if i["desc"] and i["desc"] != DESC_DEFAULT else ""
+        rows.append(
+            f'      <tr><td class="meta date">{i["date"]}</td><td>{tag}</td>'
+            f'<td><a href="{quote(i["rel"])}">{html.escape(i["rel"])}</a></td>'
+            f'<td class="meta hide-sm">{desc}</td></tr>'
+        )
+    if rows:
+        block = (
+            '  <table class="news">\n    <tbody>\n' + "\n".join(rows) + "\n    </tbody>\n  </table>"
+        )
+    else:
+        block = '  <p class="meta">nothing yet</p>'
+    head, rest = text.split(START, 1)
+    _, tail = rest.split(END, 1)
+    new = f"{head}{START}\n{block}\n  {END}{tail}"
+    if new != text:
+        top.write_text(new, encoding="utf-8")
+
+
 def main() -> None:
     total = 0
     for section in SECTIONS:
@@ -201,6 +279,7 @@ def main() -> None:
                 target.write_text(page, encoding="utf-8")
         total += len(dirs)
         update_top_page(section, descs)
+    update_new_block()
     print(f"generated {total} listing page(s)")
 
 

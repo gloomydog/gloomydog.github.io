@@ -63,3 +63,10 @@ article.doc pre code::before { content: "$ "; color: var(--muted); }
 article.doc figure { margin: 0 0 18px; }
 article.doc img { display: block; max-width: 100%; height: auto; border: 1px solid var(--border); }
 article.doc h3 { font-size: 1rem; font-weight: 700; color: var(--fg); margin: 24px 0 6px; }
+.tag-new { color: var(--green); font-weight: 700; }
+.tag-upd { color: var(--blue); font-weight: 700; }
+table.news td { vertical-align: top; }
+table.news td.date { white-space: nowrap; }
+table.news td.meta { white-space: normal; }
+table.news td a { overflow-wrap: anywhere; }
+table.news td.meta.date { white-space: nowrap; }
