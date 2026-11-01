@@ -7,7 +7,7 @@ window.QUOTES = [
     source: "In Defense of Looting"
   },
   {
-    text: "Les esclaves perdent tout dans leurs fers, jusqu'au désir d'en.",
+    text: "Les esclaves perdent tout dans leurs fers, jusqu'au désir d'en sortir.",
     author: "Jean-Jacques Rousseau",
     source: "Du contrat social ou Principes du droit politique"
   },
@@ -27,9 +27,9 @@ window.QUOTES = [
     source: "The Tyranny of Merit"
   },
   {
-    text: "Dicipline consists of the totality of totalitarian contrlols at the workplace.",
+    text: "Discipline consists of the totality of totalitarian controls at the workplace.",
     author: "Bob Black",
-    source: "The Abolition of work"
+    source: "The Abolition of Work"
   },
   {
     text: "The ship kept sailing north, and after a while it was crushed between two icebergs and everyone drowned.",
