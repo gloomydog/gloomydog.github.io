@@ -5,6 +5,7 @@ and refresh the books/ section of the top-level index.html.
 Run from the repository root:  python3 scripts/gen_listing.py
 """
 import datetime
+import hashlib
 import html
 import os
 import re
@@ -264,6 +265,19 @@ def update_new_block() -> None:
         top.write_text(new, encoding="utf-8")
 
 
+def stamp_quotes() -> None:
+    """Append ?v=<hash of quotes.js> so browsers fetch the new file after every edit."""
+    js = ROOT / "quotes.js"
+    top = ROOT / "index.html"
+    if not js.exists() or not top.exists():
+        return
+    h = hashlib.md5(js.read_bytes()).hexdigest()[:8]
+    text = top.read_text(encoding="utf-8")
+    new = re.sub(r'src="quotes\.js(\?v=[0-9a-f]+)?"', f'src="quotes.js?v={h}"', text)
+    if new != text:
+        top.write_text(new, encoding="utf-8")
+
+
 def main() -> None:
     total = 0
     for section in SECTIONS:
@@ -280,6 +294,7 @@ def main() -> None:
         total += len(dirs)
         update_top_page(section, descs)
     update_new_block()
+    stamp_quotes()
     print(f"generated {total} listing page(s)")
 
 

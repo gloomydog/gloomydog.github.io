@@ -13,6 +13,7 @@ on:
       - "projects/**"
       - "!projects/**/index.html"
       - "scripts/gen_listing.py"
+      - "quotes.js"
   workflow_dispatch:
 
 permissions:
