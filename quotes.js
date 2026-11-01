@@ -36,4 +36,29 @@ window.QUOTES = [
     author: "Ted Kaczynski",
     source: "Ship of Fools"
   },
+     {
+    text: "Hell is a collection of individuals who are spending the bulk of their time working on a task they don’t like and are not especially good at.",
+    author: "David Graeber",
+    source: "Bullshit Jobs"
+  },
+  {
+    text: "Who controls the past controls the future. Who controls the present controls the past.",
+    author: "George Orwell",
+    source: "1984"
+  },
+  {
+    text: "But I don't want comfort. I want God, I want poetry, I want real danger, I want freedom, I want goodness. I want sin.",
+    author: "Aldous Huxley",
+    source: "Brave New World"
+  },
+  {
+    text: "It is not worth the bother of killing yourself, since you always kill yourself too late.",
+    author: "Emil Cioran",
+    source: "The Trouble With Being Born"
+  },
+   {
+    text: "la propriété, c'est le vol!",
+    author: "Pierre-Joseph Proudhon",
+    source: "Théorie de la propriété"
+  },
 ];
