@@ -16,12 +16,12 @@ window.QUOTES = [
     author: "Mary Nardini Gang",
     source: "Toward the queerest insurrection"
   },
-   {
+  {
     text: "The disappearance of a sense of responsibility is the most far-reaching consequence of submission to authority.",
     author: "Stanley Milgram",
     source: "Obedience to Authority"
   },
-   {
+  {
     text: "The more we regard our success as our own doing, the less responsibility we feel for those who fall behind.",
     author: "Michael J. Sandel",
     source: "The Tyranny of Merit"
@@ -31,12 +31,12 @@ window.QUOTES = [
     author: "Bob Black",
     source: "The Abolition of work"
   },
-    {
+  {
     text: "The ship kept sailing north, and after a while it was crushed between two icebergs and everyone drowned.",
     author: "Ted Kaczynski",
     source: "Ship of Fools"
   },
-     {
+  {
     text: "Hell is a collection of individuals who are spending the bulk of their time working on a task they don’t like and are not especially good at.",
     author: "David Graeber",
     source: "Bullshit Jobs"
@@ -56,7 +56,7 @@ window.QUOTES = [
     author: "Emil Cioran",
     source: "The Trouble With Being Born"
   },
-   {
+  {
     text: "la propriété, c'est le vol!",
     author: "Pierre-Joseph Proudhon",
     source: "Théorie de la propriété"
