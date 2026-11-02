@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parent.parent
-SECTIONS = ["blog", "tips", "projects", "books"]  # top-level dirs that get auto-generated listings
+SECTIONS = ["blog", "tips", "projects", "books", "articles"]  # top-level dirs that get auto-generated listings
 USER = "gloomydog"
 NEW_COUNT = 3  # how many entries "cat new.txt" shows
 # Pages never announced in new.txt (explosives synthesis content).
