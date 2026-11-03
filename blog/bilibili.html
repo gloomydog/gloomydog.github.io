@@ -42,6 +42,110 @@
     <p>But it failed. :( The bot rejected my request again.</p>
     <p>The problem is clear: the bot blocks my requests to the HTML page. The way around it is to not fetch the HTML page at all.</p>
 
+    <h2 id="what-does-bilibili-actually-block">What does Bilibili actually block?</h2>
+    <p>Instead of guessing, I sent requests with <code>curl</code> and changed one condition at a time: the <code>User-Agent</code>, the cookies, the TLS fingerprint, and the URL path. For each request I checked the HTTP status, and whether the page actually contained the video information yt-dlp needs.</p>
+    <p>To test with real cookies, I copied the request my browser sent. In DevTools, open the Network tab, right-click the document request (<code>BV17axq6TEzZ/</code>), and choose <em>Copy</em> → <em>Copy as cURL</em>. The cookies are in the <code>Cookie</code> request header, which becomes the <code>-b</code> option in the copied command.</p>
+    <figure><img src="../img/bilibili-add-1.png" alt="DevTools Network tab: right-click the document request and choose Copy as cURL" loading="lazy"></figure>
+    <figure><img src="../img/bilibili-add-2.png" alt="The Cookie request header of the document request" loading="lazy"></figure>
+    <p>I put the cookie string (the <code>$'...'</code> part after <code>-b</code>) into <code>$C</code>, and set a few more variables:</p>
+    <pre><code>C=$'buvid3=...; b_nut=...; user_site=OVERSEAS; buvid4=...; bili_ticket=...; buvid_fp=...; ...'   # paste your own cookies here
+URL="https://www.bilibili.com/video/BV17axq6TEzZ/"
+ZH="https://www.bilibili.com/zh-Hans/video/BV17axq6TEzZ/"
+UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"</code></pre>
+    <p>Then I tested <code>/video/</code>:</p>
+    <pre><code>curl -s -o /dev/null -w "%{http_code}\n" "$URL"                  # curl's default User-Agent
+curl -s -o /dev/null -w "%{http_code}\n" -A "$UA" "$URL"         # browser User-Agent
+curl -s -o /dev/null -w "%{http_code}\n" -A "$UA" -b "$C" "$URL" # + all cookies from my browser
+curl -s "$URL" | grep -c "__playinfo__"                          # is the video info in the page?</code></pre>
+    <figure><img src="../img/bilibili-add-3.png" alt="curl results for /video/: 200, 412, 412, and 0" loading="lazy"></figure>
+    <p>And <code>/zh-Hans/video/</code>:</p>
+    <pre><code>curl -s -o /dev/null -w "%{http_code}\n" -A "$UA" "$ZH"                      # status
+curl -s -A "$UA" -b "$C" "$ZH" | wc -c                                       # page size with cookies
+curl -s -A "$UA" "$ZH" | grep -c -e "__playinfo__" -e "__INITIAL_STATE__"    # is the video info in the page?</code></pre>
+    <figure><img src="../img/bilibili-add-4.png" alt="curl results for /zh-Hans/video/: 200, 152574 bytes, and 0" loading="lazy"></figure>
+    <p>To rule out the TLS fingerprint, I also used <code>curl_cffi</code>, a Python library that makes the TLS handshake look exactly like Chrome's:</p>
+    <pre class="src"><code>from curl_cffi import requests
+r = requests.get(URL, impersonate="chrome")
+print(r.status_code, "__playinfo__" in r.text, "__INITIAL_STATE__" in r.text)</code></pre>
+    <figure><img src="../img/bilibili-add-5.png" alt="curl_cffi with Chrome impersonation still gets 412" loading="lazy"></figure>
+    <p>Here are the results, all from the same machine and the same IP address in Japan:</p>
+    <table>
+    <thead>
+    <tr>
+    <th>Path</th>
+    <th>Condition</th>
+    <th>Status</th>
+    <th>Video info in page?</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+    <td><code>/video/</code></td>
+    <td>curl's default User-Agent</td>
+    <td>200</td>
+    <td>No</td>
+    </tr>
+    <tr>
+    <td><code>/video/</code></td>
+    <td>Browser User-Agent (Chrome 130 or 149)</td>
+    <td>412</td>
+    <td>–</td>
+    </tr>
+    <tr>
+    <td><code>/video/</code></td>
+    <td>Browser User-Agent + real <code>buvid3</code></td>
+    <td>412</td>
+    <td>–</td>
+    </tr>
+    <tr>
+    <td><code>/video/</code></td>
+    <td>Browser User-Agent + all browser cookies</td>
+    <td>412</td>
+    <td>–</td>
+    </tr>
+    <tr>
+    <td><code>/video/</code></td>
+    <td>Chrome TLS fingerprint (<code>curl_cffi</code>)</td>
+    <td>412</td>
+    <td>–</td>
+    </tr>
+    <tr>
+    <td><code>/video/</code></td>
+    <td>yt-dlp + browser cookies + <code>--impersonate chrome</code></td>
+    <td>412</td>
+    <td>–</td>
+    </tr>
+    <tr>
+    <td><code>/zh-Hans/video/</code></td>
+    <td>Browser User-Agent</td>
+    <td>200</td>
+    <td>No</td>
+    </tr>
+    <tr>
+    <td><code>/zh-Hans/video/</code></td>
+    <td>Browser User-Agent + all browser cookies</td>
+    <td>200 (153 kB)</td>
+    <td>No</td>
+    </tr>
+    </tbody>
+    </table>
+    <p>A few things stand out:</p>
+    <ul>
+    <li><strong>Cookies and the TLS fingerprint don't matter.</strong> As long as the request claims to be a browser, <code>/video/</code> returns 412, even with every cookie my browser had or a perfect Chrome TLS handshake.</li>
+    <li><strong>Not claiming to be a browser gets you a hollow page.</strong> With curl's default User-Agent, <code>/video/</code> returns 200, but the page has no video information. I tried this with yt-dlp too (<code>--user-agent "curl/8.0"</code>): the 412 went away, and it failed with <code>Unable to extract initial state</code> instead.</li>
+    <li><strong>The language-prefixed path works, but it's hollow too.</strong> <code>/zh-Hans/video/</code> returns 200, but even with all my cookies, it contains no stream URLs at all. And yt-dlp doesn't accept this URL format anyway, as we saw at the beginning.</li>
+    </ul>
+    <p>My cookies include <code>user_site=OVERSEAS</code>, so my guess is that Bilibili sends overseas visitors to the language-prefixed pages, and treats a “browser” asking for <code>/video/</code> directly as suspicious. I can't prove this, though, since the decision happens on Bilibili's servers.</p>
+    <h2 id="where-does-the-browser-get-the-stream-urls">Where does the browser get the stream URLs?</h2>
+    <p>If the HTML has no stream URLs, how does the browser play the video? I checked the browser's own requests in DevTools.</p>
+    <p>When I switched to another video from inside the player, the browser called <code>api.bilibili.com/x/player/wbi/playurl</code>, a JSON API with a WBI signature (<code>w_rid</code> and <code>wts</code> at the end of the URL). It's the same API my script uses (see below).</p>
+    <figure><img src="../img/bilibili-add-6.png" alt="The playurl request in DevTools, with w_rid and wts at the end of the URL" loading="lazy"></figure>
+    <p>Then I matched the response against the actual <code>.m4s</code> requests. The audio file (<code>…-1-30216.m4s</code>) is <code>audio[0].baseUrl</code>, and the video file (<code>…-1-100022.m4s</code>) is <code>video[5].baseUrl</code>: AV1 (<code>codecid: 13</code>) at 360p. The browser also fetched <code>…-1-100023.m4s</code>, so it seems to switch between 360p and 480p depending on bandwidth. My script, on the other hand, picks the highest quality and prefers AVC for compatibility.</p>
+    <figure><img src="../img/bilibili-add-7.png" alt="The .m4s file names match audio[0].baseUrl and video[5].baseUrl in the playurl response" loading="lazy"></figure>
+    <p>When I opened a video page directly, though, there was no <code>playurl</code> request at all. I searched every response in DevTools (Ctrl+F in the Network tab searches response bodies) for the <code>.m4s</code> file name, and the only matches were the <code>.m4s</code> requests themselves. So the stream URLs never appear in plain text in any response. <em>They may be encrypted, sent in a binary format like protobuf, or fetched by a Web Worker. I didn't dig further.</em></p>
+    <p>One more thing: the browser itself downloads from Akamai (<code>upos-hz-mirrorakam.akamaized.net</code>), the same CDN that dropped my mpv connection. The browser gets away with it because it fetches small chunks with Range requests and simply reconnects when one fails.</p>
+    <p>The conclusion: from overseas, scraping the HTML page is a dead end, no matter which cookies or headers you send. The reliable route is to do what the player does when you switch videos: call the JSON APIs directly.</p>
+
     <h2>Alternative: call the APIs directly</h2>
     <p>I (mostly Claude Opus 5.5) wrote a Python script, <code>bilibili_watcher.py</code> (<a href="https://github.com/gloomydog/bilibili-watcher">see my GitHub</a>, or the full code at the end of this article), that plays and downloads Bilibili videos without going through the HTML page.</p>
     <p>The browser's video player doesn't actually read the video URL from the HTML either. It calls JSON APIs in the background. The script does the same. It gets the cookies Bilibili expects from an API, then calls the JSON APIs that return the video information and stream URLs, with the signature Bilibili requires.</p>
