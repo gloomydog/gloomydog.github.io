@@ -70,3 +70,4 @@ table.news td.date { white-space: nowrap; }
 table.news td.meta { white-space: normal; }
 table.news td a { overflow-wrap: anywhere; }
 table.news td.meta.date { white-space: nowrap; }
+article.doc pre.src code::before { content: none; }
