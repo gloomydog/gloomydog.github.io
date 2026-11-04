@@ -16,7 +16,7 @@
       <li><a href="#app"><strong>Method 1: the Mullvad app.</strong></a> It is the easier way. A background service (daemon) manages the tunnel, and you control it with the <code>mullvad</code> command, so switching locations takes one command.</li>
       <li><a href="#wireguard"><strong>Method 2: WireGuard only, without the app.</strong></a> You download a configuration file and bring the tunnel up yourself with <code>wg-quick</code>. Nothing else runs in the background, but you manage the key, the file, and the DNS setting yourself.</li>
     </ul>
-    <p>Both methods connect to the same Mullvad servers. The commands for Method 1 are for Arch Linux.</p>
+    <p>Both methods connect to the same Mullvad servers.</p>
 
     <h2 id="app">Method 1: the Mullvad app</h2>
 
@@ -37,18 +37,19 @@
 
     <h3>4. Log in to your Mullvad account</h3>
     <pre><code>mullvad account login</code></pre>
-    <p>The command asks for your account number. You can also pass it as an argument (<code>mullvad account login &lt;your account number&gt;</code>), but then it stays in your shell history, so I prefer the prompt. The account number is the only credential Mullvad has, so never share it.</p>
+    <p>The command asks for your account number. You can also pass it as an argument (<code>mullvad account login &lt;your account number&gt;</code>).</p>
     <figure><img src="../img/mullvad-app-3.png" alt="mullvad account login: entering the account number (hidden)" loading="lazy"></figure>
 
     <h3>5. Choose a location</h3>
     <p>List all relays:</p>
     <pre><code>mullvad relay list</code></pre>
-    <p>List only the countries (the country lines are the ones that start at the left edge):</p>
-    <pre><code>mullvad relay list | grep '^\S'</code></pre>
     <figure><img src="../img/mullvad-app-4.png" alt="List of countries from mullvad relay list" loading="lazy"></figure>
+    <p>List only the countries:</p>
+    <pre><code>mullvad relay list | grep '^\S'</code></pre>
+       <figure><img src="../img/mullvad-app-5.png" alt="Servers in Sweden, with hosting information" loading="lazy"></figure>   
     <p>List the servers of one country. Server names look like <code>se-sto-wg-209</code>: country (Sweden), city (Stockholm), protocol (WireGuard), and a number. Each line also tells you whether the server is owned by Mullvad or rented from a hosting provider.</p>
     <pre><code>mullvad relay list | grep se-</code></pre>
-    <figure><img src="../img/mullvad-app-5.png" alt="Servers in Sweden, with hosting information" loading="lazy"></figure>    <figure><img src="../img/mullvad-app-6.png" alt="Mullvad-owned servers in Stockholm and other Swedish cities" loading="lazy"></figure>
+    <figure><img src="../img/mullvad-app-6.png" alt="Mullvad-owned servers in Stockholm and other Swedish cities" loading="lazy"></figure>
 
     <h3>6. Connect</h3>
     <p>Set the location, connect, and check the status:</p>
@@ -60,8 +61,6 @@ mullvad status</code></pre>
     <p>Under the hood, the app uses WireGuard. You can see the WireGuard interface it created:</p>
     <pre><code>ip link | grep mullvad</code></pre>
     <figure><img src="../img/mullvad-app-8.png" alt="The wg0-mullvad WireGuard interface" loading="lazy"></figure>
-    <p>To double-check from the outside, ask Mullvad whether your traffic comes through its network:</p>
-    <pre><code>curl https://am.i.mullvad.net/connected</code></pre>
 
     <h3>7. Change your location</h3>
     <p>Set another location. If you are connected, the app reconnects to the new relay automatically.</p>
@@ -78,7 +77,7 @@ mullvad status</code></pre>
     <h3>Optional: auto-connect and lockdown mode</h3>
     <p>Connect automatically when the daemon starts:</p>
     <pre><code>mullvad auto-connect set on</code></pre>
-    <p>Lockdown mode blocks all network traffic while the VPN is not connected, so nothing leaks if the tunnel drops. Be careful: with lockdown mode on, you have no internet access at all until you connect.</p>
+    <p>Lockdown mode blocks all network traffic while the VPN is not connected, so nothing leaks if the tunnel drops. With lockdown mode on, you have no internet access at all until you connect.</p>
     <pre><code>mullvad lockdown-mode set on</code></pre>
 
     <h2 id="wireguard">Method 2: WireGuard only (no app)</h2>
