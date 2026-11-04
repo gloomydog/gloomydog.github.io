@@ -40,7 +40,7 @@
     <pre><code>yt-dlp --cookies-from-browser brave "https://www.bilibili.com/video/BV17axq6TEzZ/"</code></pre>
     <figure><img src="../img/bilibili-5.png" alt="yt-dlp with browser cookies still fails with HTTP 412" loading="lazy"></figure>
     <p>But it failed. :( The bot rejected my request again.</p>
-    <p>The problem is clear: the bot blocks my requests to the HTML page. The way around it is to not fetch the HTML page at all.</p>
+    <p>So what exactly is Bilibili checking? I decided to find out...</p>
 
     <h2 id="what-does-bilibili-actually-block">What does Bilibili actually block?</h2>
     <p>Instead of guessing, I sent requests with <code>curl</code> and changed one condition at a time: the <code>User-Agent</code>, the cookies, the TLS fingerprint, and the URL path. For each request I checked the HTTP status, and whether the page actually contained the video information yt-dlp needs.</p>
