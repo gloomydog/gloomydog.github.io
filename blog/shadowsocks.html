@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shadowsocks | gloomydog</title>
+<link rel="stylesheet" href="../style.css?v=7">
+</head>
+<body>
+<main>
+  <div class="prompt"><span class="user">gloomydog</span>:<span class="path">~/blog</span>$ cat shadowsocks.html</div>
+  <article class="doc">
+    <h1>Shadowsocks</h1>
+    <p>A VPN encrypts what you send, but it does not necessarily hide
+    <em>that</em> you are using a VPN. Plain WireGuard traffic is easy to
+recognize on the wire, which is why some networks can detect and block
+it. Shadowsocks is one way around this. It is an encrypted proxy
+protocol that wraps your traffic so that every packet looks like random
+bytes, with no fixed header for a firewall to match on.</p>
+    <p>The easiest way to try it is through Mullvad VPN, which can run its
+WireGuard tunnel inside Shadowsocks with a single setting. I wrote about
+setting up Mullvad VPN in a previous article. If you are interested, see
+    <a href="../tips/mullvad.html">the previous article</a>.</p>
+    <p>In this article, I capture traffic with Wireshark and compare plain
+WireGuard with WireGuard over Shadowsocks, to see what actually changes
+on the wire.</p>
+    <h2 id="what-is-shadowsocks">What is Shadowsocks?</h2>
+    <p>Shadowsocks is an open-source proxy protocol, first released in 2012
+by a Chinese developer to get around the Great Firewall. It was designed
+with one goal: to be hard to detect and block.</p>
+    <p>Most protocols, including VPN protocols such as WireGuard and
+OpenVPN, are easy to identify. They begin with a handshake that has a
+recognizable shape, and their packets carry fixed fields in fixed
+places. A firewall does not need to decrypt anything to recognize them;
+it only needs to match those patterns. This technique is called deep
+packet inspection (DPI).</p>
+    <p>Shadowsocks avoids giving a firewall anything to match:</p>
+    <ul>
+    <li><strong>No handshake.</strong> The client and the server share a
+password (a pre-shared key) in advance, so there is no negotiation on
+the wire. The first packet already carries data.</li>
+    <li><strong>Everything is encrypted, including the header.</strong> Each
+packet starts with a random <em>salt</em>, and the rest is encrypted
+with an AEAD cipher such as AES-256-GCM or ChaCha20-Poly1305. The salt
+is used to derive a fresh key, so no two packets begin with the same
+bytes.</li>
+    <li><strong>No fixed fields.</strong> Because the salt is random and the
+rest is ciphertext, every byte on the wire looks random. There is no
+magic number, version field or message type for a firewall to look
+for.</li>
+    </ul>
+    <p>Shadowsocks itself is a proxy, not a VPN: it forwards your traffic to
+a destination of your choice, but it is not designed to replace a VPN's
+routing. Mullvad uses it as an outer wrapper. Your traffic is first
+encrypted by WireGuard as usual, then the WireGuard packet is encrypted
+again by Shadowsocks before it leaves your computer. Mullvad's server
+unwraps the Shadowsocks layer and hands the WireGuard packet to the
+WireGuard relay.</p>
+    <figure>
+    <img alt="How Mullvad's Shadowsocks obfuscation works. WireGuard still protects your data; Shadowsocks hides the fact that it is WireGuard." loading="lazy" src="../img/shadowsocks-1.png"/>
+    <figcaption>How Mullvad's Shadowsocks obfuscation
+works. WireGuard still protects your data; Shadowsocks hides the fact
+that it is WireGuard.</figcaption>
+    </figure>
+    <p>In short, WireGuard protects <em>what</em> you send, and Shadowsocks
+hides <em>what kind of traffic</em> it is.</p>
+    <h2 id="setup">Setup</h2>
+    <p>Mullvad calls this feature <em>anti-censorship</em>. You can turn
+Shadowsocks on from the command line:</p>
+    <pre><code>mullvad anti-censorship set mode shadowsocks</code></pre>
+    <p><code>mullvad status</code> now lists Shadowsocks under Features.</p>
+    <figure>
+    <img alt="mullvad status before and after enabling Shadowsocks." loading="lazy" src="../img/shadowsocks-2.png"/>
+    <figcaption><code>mullvad status</code> before and
+after enabling Shadowsocks.</figcaption>
+    </figure>
+    <p>You can also check the current mode directly:</p>
+    <pre><code>mullvad anti-censorship get</code></pre>
+    <figure>
+    <img alt="The anti-censorship mode is set to shadowsocks." loading="lazy" src="../img/shadowsocks-3.png"/>
+    <figcaption>The anti-censorship mode is set to
+    <code>shadowsocks</code>.</figcaption>
+    </figure>
+    <p>To turn Shadowsocks off again:</p>
+    <pre><code>mullvad anti-censorship set mode off</code></pre>
+    <p>The same option is available in the desktop app under VPN
+settings.</p>
+    <h2 id="capturing-with-wireshark">Capturing with Wireshark</h2>
+    <h3 id="test-conditions">Test conditions</h3>
+    <ul>
+    <li>Client: Linux laptop on Wi-Fi (<code>wlp1s0</code>), Wireshark
+4.7</li>
+    <li>VPN: Mullvad, WireGuard, Tokyo relay</li>
+    <li>Traffic: <code>ping -c 60 -s 100 1.1.1.1</code> (60 ICMP echo
+requests, 100-byte payload, one per second)</li>
+    <li>Two captures of about 60 seconds each: one with Shadowsocks off, one
+with it on</li>
+    </ul>
+    <p>Close your browser and other apps that use the network before
+capturing. Everything inside the VPN shares one encrypted flow, so
+background traffic cannot be filtered out later and will blur the
+results.</p>
+    <h3 id="plain-wireguard">Plain WireGuard</h3>
+    <p>First, I captured normal VPN traffic with Shadowsocks turned off.</p>
+    <p>Open Wireshark:</p>
+    <pre><code>sudo wireshark</code></pre>
+    <p>Running Wireshark as root is the quickest way to get capture
+permission. For regular use, add yourself to the <code>wireshark</code>
+group instead (<code>sudo usermod -aG wireshark $USER</code>) and log in
+again.</p>
+    <p>Select the <strong>physical</strong> interface, here
+    <code>wlp1s0</code>. Do not pick the tunnel interface
+    <code>wg0-mullvad</code>. That interface shows your traffic after
+decryption, which is not what an outside observer sees.</p>
+    <figure>
+    <img alt="Select the physical interface (wlp1s0)." loading="lazy" src="../img/shadowsocks-4.png"/>
+    <figcaption>Select the physical interface
+(<code>wlp1s0</code>).</figcaption>
+    </figure>
+    <p>Click the blue fin to start capturing, and the red square to
+stop.</p>
+    <figure>
+    <img alt="Start and stop buttons." loading="lazy" src="../img/shadowsocks-5.png"/>
+    <figcaption>Start and stop buttons.</figcaption>
+    </figure>
+    <p>With the capture running, run ping in a terminal:</p>
+    <pre><code>ping -c 60 -s 100 1.1.1.1</code></pre>
+    <p>When ping finishes (about 60 seconds), stop the capture. Then type a
+display filter for your Mullvad <strong>entry</strong> relay, the server
+your machine actually connects to. In my case:</p>
+    <pre><code>ip.addr == 194.127.166.81</code></pre>
+    <p>Note that <code>mullvad status</code> shows your <em>visible</em>
+(exit) IP address, which can differ from the entry relay. The easiest
+way to find the entry address is Statistics &gt; Conversations &gt; UDP,
+shown below. (My own IP address is masked in the screenshots.)</p>
+    <figure>
+    <img alt="Filtered capture. Wireshark labels every packet as WireGuard." loading="lazy" src="../img/shadowsocks-6.png"/>
+    <figcaption>Filtered capture. Wireshark labels every
+packet as WireGuard.</figcaption>
+    </figure>
+    <p>The Protocol column says <strong>WireGuard</strong>. The contents are
+encrypted, so nobody can read your data, but anyone watching the network
+can tell that you are using WireGuard. That is enough for a firewall to
+block it.</p>
+    <p>Open any packet to see why. Wireshark decodes the WireGuard header:
+message type, receiver index and counter. The UDP payload always begins
+with a fixed type field, <code>04 00 00 00</code> for transport data and
+    <code>01 00 00 00</code> for a handshake initiation. That fixed pattern
+is a reliable fingerprint.</p>
+    <figure>
+    <img alt="Packet detail. The payload begins with 04 00 00 00 (Transport Data)." loading="lazy" src="../img/shadowsocks-7.png"/>
+    <figcaption>Packet detail. The payload begins with
+    <code>04 00 00 00</code> (Transport Data).</figcaption>
+    </figure>
+    <p><strong>Statistics &gt; Protocol Hierarchy</strong> shows that all
+120 packets (60 requests and 60 replies) were decoded as WireGuard
+Protocol.</p>
+    <figure>
+    <img alt="Protocol Hierarchy: 100% WireGuard." loading="lazy" src="../img/shadowsocks-8.png"/>
+    <figcaption>Protocol Hierarchy: 100%
+WireGuard.</figcaption>
+    </figure>
+    <p><strong>Statistics &gt; Packet Lengths</strong> (with the same
+display filter) shows that every packet was exactly 202 bytes.</p>
+    <figure>
+    <img alt="Packet Lengths: all 120 packets are 202 bytes." loading="lazy" src="../img/shadowsocks-9.png"/>
+    <figcaption>Packet Lengths: all 120 packets are 202
+bytes.</figcaption>
+    </figure>
+    <p><strong>Statistics &gt; Conversations &gt; UDP</strong> shows a
+single flow between my machine and the relay
+    <code>194.127.166.81</code>, port 43130.</p>
+    <figure>
+    <img alt="Conversations: one UDP flow to the relay." loading="lazy" src="../img/shadowsocks-10.png"/>
+    <figcaption>Conversations: one UDP flow to the
+relay.</figcaption>
+    </figure>
+    <h3 id="wireguard-over-shadowsocks">WireGuard over Shadowsocks</h3>
+    <p>Next, I turned Shadowsocks on and repeated the same procedure.</p>
+    <p>After switching modes, wait a minute or two before you start
+capturing. For a short time the old relay may keep sending WireGuard
+packets to your machine (one direction only, which your client ignores).
+These are leftovers from the old session, not a leak, but they will
+confuse the results.</p>
+    <p>With Shadowsocks on, Mullvad connected through a different entry
+relay, <code>138.199.21.239</code>, so the display filter changes
+accordingly:</p>
+    <pre><code>ip.addr == 138.199.21.239</code></pre>
+    <p>The Protocol column now says plain <strong>UDP</strong> instead of
+WireGuard. Wireshark can no longer identify the protocol. This shows
+that Shadowsocks hides which VPN protocol you are using.</p>
+    <figure>
+    <img alt="Filtered capture. Packets are labeled UDP only." loading="lazy" src="../img/shadowsocks-11.png"/>
+    <figcaption>Filtered capture. Packets are labeled UDP
+only.</figcaption>
+    </figure>
+    <p>The payload is also different. It no longer begins with
+    <code>04 00 00 00</code>, and Wireshark shows it only as raw Data. The
+first bytes were different in every one of the 123 packets, and the
+payload looks statistically random (about 8 bits of entropy per
+byte).</p>
+    <figure>
+    <img alt="Packet detail. No WireGuard header, only random-looking data." loading="lazy" src="../img/shadowsocks-12.png"/>
+    <figcaption>Packet detail. No WireGuard header, only
+random-looking data.</figcaption>
+    </figure>
+    <p>In Protocol Hierarchy, the top layer is now <strong>Data</strong>
+instead of WireGuard Protocol.</p>
+    <figure>
+    <img alt="Protocol Hierarchy: UDP &gt; Data." loading="lazy" src="../img/shadowsocks-13.png"/>
+    <figcaption>Protocol Hierarchy: UDP &gt;
+Data.</figcaption>
+    </figure>
+    <p>In Packet Lengths, the ping packets are now <strong>257
+bytes</strong>, 55 bytes more than before. (The three other packets, of
+129, 189 and 245 bytes, are not ping traffic.)</p>
+    <figure>
+    <img alt="Packet Lengths: the ping packets are 257 bytes." loading="lazy" src="../img/shadowsocks-14.png"/>
+    <figcaption>Packet Lengths: the ping packets are 257
+bytes.</figcaption>
+    </figure>
+    <p>In Conversations, there is again a single UDP flow, but to a
+different address and port: <code>138.199.21.239</code>, port 51919.</p>
+    <figure>
+    <img alt="Conversations: one UDP flow to a different relay and port." loading="lazy" src="../img/shadowsocks-15.png"/>
+    <figcaption>Conversations: one UDP flow to a
+different relay and port.</figcaption>
+    </figure>
+    <h2 id="how-much-overhead-does-shadowsocks-add">How much overhead does
+Shadowsocks add?</h2>
+    <p>To check whether the extra 55 bytes depends on packet size, I
+repeated both captures with four ping sizes (<code>-s 10</code>,
+    <code>100</code>, <code>500</code> and <code>1000</code>), 60 seconds
+each.</p>
+    <table>
+    <thead>
+    <tr>
+    <th style="text-align: right;"><code>ping -s</code></th>
+    <th style="text-align: right;">WireGuard only</th>
+    <th style="text-align: right;">WireGuard + Shadowsocks</th>
+    <th style="text-align: right;">Difference</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+    <td style="text-align: right;">10</td>
+    <td style="text-align: right;">122 B</td>
+    <td style="text-align: right;">177 B</td>
+    <td style="text-align: right;">+55 B</td>
+    </tr>
+    <tr>
+    <td style="text-align: right;">100</td>
+    <td style="text-align: right;">202 B</td>
+    <td style="text-align: right;">257 B</td>
+    <td style="text-align: right;">+55 B</td>
+    </tr>
+    <tr>
+    <td style="text-align: right;">500</td>
+    <td style="text-align: right;">602 B</td>
+    <td style="text-align: right;">657 B</td>
+    <td style="text-align: right;">+55 B</td>
+    </tr>
+    <tr>
+    <td style="text-align: right;">1000</td>
+    <td style="text-align: right;">1114 B</td>
+    <td style="text-align: right;">1169 B</td>
+    <td style="text-align: right;">+55 B</td>
+    </tr>
+    </tbody>
+    </table>
+    <figure>
+    <img alt="(a) Frame length on the physical interface versus ping payload size. (b) Echo replies received out of 60." loading="lazy" src="../img/shadowsocks-16.png"/>
+    <figcaption>(a) Frame length on the physical
+interface versus ping payload size. (b) Echo replies received out of
+60.</figcaption>
+    </figure>
+    <p>The difference is exactly 55 bytes at every size, so Shadowsocks adds
+a fixed cost to each packet, not a cost proportional to the data. All 60
+echo requests received replies in every condition.</p>
+    <p>The 55 bytes match the Shadowsocks UDP packet format. Each UDP packet
+is laid out as a random salt, then the encrypted contents, then an
+authentication tag. The encrypted contents are a destination address
+followed by the data, which here is the whole WireGuard packet. Assuming
+a 256-bit cipher (32-byte salt) and an IPv4 destination (7 bytes: a
+1-byte type, a 4-byte address and a 2-byte port), the overhead is 32 + 7
++ 16 = 55 bytes, exactly what the captures show.</p>
+    <figure>
+    <img alt="Packet layout for ping -s 100. Shadowsocks wraps the entire WireGuard packet, including the 04 00 00 00 header that identifies it." loading="lazy" src="../img/shadowsocks-17.png"/>
+    <figcaption>Packet layout for
+    <code>ping -s 100</code>. Shadowsocks wraps the entire WireGuard packet,
+including the <code>04 00 00 00</code> header that identifies
+it.</figcaption>
+    </figure>
+    <p>This layout also explains why Wireshark loses track of the protocol.
+The WireGuard header is still there, but it now sits inside the
+Shadowsocks ciphertext, and the first bytes on the wire are the random
+salt.</p>
+    <p>The WireGuard-only numbers follow a simple formula. A frame is 14
+bytes of Ethernet, 20 of IP, 8 of UDP, 16 of WireGuard header, the inner
+packet padded to a multiple of 16 bytes, and a 16-byte authentication
+tag. That padding is why the 10-byte ping (a 38-byte inner packet,
+padded to 48) produces a 122-byte frame.</p>
+    <h2 id="summary">Summary</h2>
+    <table>
+
+    <thead>
+    <tr>
+    <th></th>
+    <th>WireGuard only</th>
+    <th>WireGuard + Shadowsocks</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+    <td>Wireshark Protocol column</td>
+    <td>WireGuard</td>
+    <td>UDP</td>
+    </tr>
+    <tr>
+    <td>Protocol Hierarchy</td>
+    <td>UDP &gt; WireGuard Protocol</td>
+    <td>UDP &gt; Data</td>
+    </tr>
+    <tr>
+    <td>First 4 bytes of payload</td>
+    <td>Always <code>04 00 00 00</code> (data) or <code>01 00 00 00</code>
+(handshake)</td>
+    <td>Different in every packet</td>
+    </tr>
+    <tr>
+    <td>Entry relay (this test)</td>
+    <td><code>194.127.166.81:43130</code></td>
+    <td><code>138.199.21.239:51919</code></td>
+    </tr>
+    <tr>
+    <td>Frame length, <code>ping -s 100</code></td>
+    <td>202 B</td>
+    <td>257 B</td>
+    </tr>
+    <tr>
+    <td>Overhead per packet</td>
+    <td>n/a</td>
+    <td>+55 B, constant</td>
+    </tr>
+    </tbody>
+    </table>
+    <p>Shadowsocks does what it promises at the protocol level. Plain
+WireGuard is easy to identify from its fixed header, while the
+Shadowsocks-wrapped traffic is just UDP carrying random-looking bytes.
+The cost is a small, constant 55 bytes per packet.</p>
+    <p>It is not invisible, though. Packet sizes and timing are still
+visible: in this test every ping produced packets of exactly the same
+length, once per second. A determined observer using traffic analysis
+could still notice patterns. Shadowsocks hides <em>what protocol</em>
+you use, not <em>that</em> you are sending traffic.</p>
+    <p>These results come from one laptop, one network and one VPN provider,
+with small samples. Treat them as a hands-on illustration rather than
+general measurements.</p>
+    <h2 id="references">References</h2>
+    <ul>
+    <li>Shadowsocks, AEAD ciphers and packet format: <a href="https://shadowsocks.org/doc/aead.html">https://shadowsocks.org/doc/aead.html</a></li>
+    <li>WireGuard protocol and message formats: <a href="https://www.wireguard.com/protocol/">https://www.wireguard.com/protocol/</a></li>
+    </ul>
+  </article>
+  <div class="prompt"><a href="./">$ cd ..</a></div>
+  <footer>&copy; 2026 gloomydog</footer>
+</main>
+</body>
+</html>
