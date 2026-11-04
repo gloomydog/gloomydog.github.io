@@ -10,36 +10,105 @@
 <main>
   <div class="prompt"><span class="user">gloomydog</span>:<span class="path">~/tips</span>$ cat mullvad.html</div>
   <article class="doc">
-    <h1>Setting Up Mullvad VPN on Linux with WireGuard</h1>
-    <p>This tutorial explains how to activate Mullvad VPN on Linux using WireGuard instead of the official app.</p>
+    <h1>Setting Up Mullvad VPN on Linux</h1>
+    <p>This tutorial shows two ways to use Mullvad VPN on Linux:</p>
+    <ul>
+      <li><a href="#app"><strong>Method 1: the Mullvad app.</strong></a> It is the easier way. A background service (daemon) manages the tunnel, and you control it with the <code>mullvad</code> command, so switching locations takes one command.</li>
+      <li><a href="#wireguard"><strong>Method 2: WireGuard only, without the app.</strong></a> You download a configuration file and bring the tunnel up yourself with <code>wg-quick</code>. Nothing else runs in the background, but you manage the key, the file, and the DNS setting yourself.</li>
+    </ul>
+    <p>Both methods connect to the same Mullvad servers. The commands for Method 1 are for Arch Linux.</p>
 
-    <h2>Generate a WireGuard configuration</h2>
+    <h2 id="app">Method 1: the Mullvad app</h2>
+
+    <h3>1. Make room for a WireGuard key</h3>
+    <p>The app registers your computer as a new device, which uses one WireGuard key on your Mullvad account. An account can hold only a limited number of keys. If all of them are already in use, open the WireGuard keys page of your account and delete one you no longer need.</p>
+    <p>When you log in with the app later (step 4), a new key appears in this list.</p>
+    <figure><img src="../img/mullvad-app-1.png" alt="Manage WireGuard keys on the Mullvad account page; the new key created by the app is marked" loading="lazy"></figure>
+
+    <h3>2. Install</h3>
+    <pre><code>sudo pacman -S mullvad-vpn</code></pre>
+
+    <h3>3. Start the daemon</h3>
+    <p>The daemon is the background service that the <code>mullvad</code> command talks to. Enable it so it also starts at boot:</p>
+    <pre><code>sudo systemctl enable --now mullvad-daemon</code></pre>
+    <p>Then check that it is running. The status should show <code>active (running)</code>.</p>
+    <pre><code>systemctl status mullvad-daemon</code></pre>
+    <figure><img src="../img/mullvad-app-2.png" alt="systemctl status mullvad-daemon showing active (running)" loading="lazy"></figure>
+
+    <h3>4. Log in to your Mullvad account</h3>
+    <pre><code>mullvad account login</code></pre>
+    <p>The command asks for your account number. You can also pass it as an argument (<code>mullvad account login &lt;your account number&gt;</code>), but then it stays in your shell history, so I prefer the prompt. The account number is the only credential Mullvad has, so never share it.</p>
+    <figure><img src="../img/mullvad-app-3.png" alt="mullvad account login: entering the account number (hidden)" loading="lazy"></figure>
+
+    <h3>5. Choose a location</h3>
+    <p>List all relays:</p>
+    <pre><code>mullvad relay list</code></pre>
+    <p>List only the countries (the country lines are the ones that start at the left edge):</p>
+    <pre><code>mullvad relay list | grep '^\S'</code></pre>
+    <figure><img src="../img/mullvad-app-4.png" alt="List of countries from mullvad relay list" loading="lazy"></figure>
+    <p>List the servers of one country. Server names look like <code>se-sto-wg-209</code>: country (Sweden), city (Stockholm), protocol (WireGuard), and a number. Each line also tells you whether the server is owned by Mullvad or rented from a hosting provider.</p>
+    <pre><code>mullvad relay list | grep se-</code></pre>
+    <figure><img src="../img/mullvad-app-5.png" alt="Servers in Sweden, with hosting information" loading="lazy"></figure>    <figure><img src="../img/mullvad-app-6.png" alt="Mullvad-owned servers in Stockholm and other Swedish cities" loading="lazy"></figure>
+
+    <h3>6. Connect</h3>
+    <p>Set the location, connect, and check the status:</p>
+    <pre><code>mullvad relay set location se
+mullvad connect
+mullvad status</code></pre>
+    <p>The status should show <code>Connected</code>, the relay you are using, and its visible location. You can also narrow the location down to a city, for example <code>mullvad relay set location se sto</code>.</p>
+    <figure><img src="../img/mullvad-app-7.png" alt="mullvad status: connected to a relay in Stockholm, Sweden" loading="lazy"></figure>
+    <p>Under the hood, the app uses WireGuard. You can see the WireGuard interface it created:</p>
+    <pre><code>ip link | grep mullvad</code></pre>
+    <figure><img src="../img/mullvad-app-8.png" alt="The wg0-mullvad WireGuard interface" loading="lazy"></figure>
+    <p>To double-check from the outside, ask Mullvad whether your traffic comes through its network:</p>
+    <pre><code>curl https://am.i.mullvad.net/connected</code></pre>
+
+    <h3>7. Change your location</h3>
+    <p>Set another location. If you are connected, the app reconnects to the new relay automatically.</p>
+    <pre><code>mullvad relay set location jp
+mullvad status</code></pre>
+    <p>Right after the change, the status may still say <code>Connecting</code>. Run <code>mullvad status</code> again after a second.</p>
+    <figure><img src="../img/mullvad-app-9.png" alt="mullvad status right after switching to Japan, Tokyo" loading="lazy"></figure>
+
+    <h3>8. Disconnect</h3>
+    <pre><code>mullvad disconnect</code></pre>
+    <p>The status now shows <code>Disconnected</code>.</p>
+    <figure><img src="../img/mullvad-app-10.png" alt="mullvad status: Disconnected" loading="lazy"></figure>
+
+    <h3>Optional: auto-connect and lockdown mode</h3>
+    <p>Connect automatically when the daemon starts:</p>
+    <pre><code>mullvad auto-connect set on</code></pre>
+    <p>Lockdown mode blocks all network traffic while the VPN is not connected, so nothing leaks if the tunnel drops. Be careful: with lockdown mode on, you have no internet access at all until you connect.</p>
+    <pre><code>mullvad lockdown-mode set on</code></pre>
+
+    <h2 id="wireguard">Method 2: WireGuard only (no app)</h2>
+    <h3>1. Generate a WireGuard configuration</h3>
     <ol>
       <li>Visit the official Mullvad website, go to your account, and find <strong>Downloads &gt; WireGuard configuration</strong>.</li>
       <li>Select your OS (Linux, of course) and click <strong>Generate key</strong>.</li>
       <li>Scroll down and select a location and a server. Some countries offer multiple servers. Here, I selected Switzerland and <code>ch-zrh-wg-202</code>.</li>
       <li>Choose your connection protocol and content-blocking options, then download the file to your PC.</li>
     </ol>
-    <p>If you prefer, you can install the Mullvad app on Linux instead. In this tutorial, I use WireGuard directly rather than the app.</p>
+    <p>In this method, I use WireGuard directly instead of the app. If you prefer the app, see <a href="#app">Method 1</a>.</p>
     <figure><img src="../img/mullvad-1.png" alt="Mullvad account page showing the WireGuard configuration download" loading="lazy"></figure>
     <figure><img src="../img/mullvad-2.png" alt="Selecting the location and server for the WireGuard configuration" loading="lazy"></figure>
 
-    <h2>Edit the DNS setting (optional)</h2>
+    <h3>2. Edit the DNS setting (optional)</h3>
     <p>I use AdGuard Home as my DNS server, so I had to edit the configuration file. The file contains a default DNS entry, which I commented out to disable it, because it conflicted with my AdGuard DNS settings.</p>
     <figure><img src="../img/mullvad-3.png" alt="Configuration file with the DNS line commented out" loading="lazy"></figure>
     <p>If you are not using your own DNS, skip this step.</p>
 
-    <h2>Install the configuration file</h2>
+    <h3>3. Install the configuration file</h3>
     <p>Move the downloaded file to the WireGuard directory and rename it as you like. I renamed mine to <code>mullvad_swiss.conf</code>.</p>
     <pre><code>sudo mv ~/Downloads/ch-zrh-wg-202.conf /etc/wireguard/mullvad_swiss.conf</code></pre>
     <p>You can check the contents with:</p>
     <pre><code>sudo cat /etc/wireguard/mullvad_swiss.conf</code></pre>
 
-    <h2>Connect to Mullvad VPN</h2>
+    <h3>4. Connect to Mullvad VPN</h3>
     <pre><code>sudo wg-quick up mullvad_swiss</code></pre>
     <figure><img src="../img/mullvad-4.png" alt="Terminal output after connecting with wg-quick up" loading="lazy"></figure>
 
-    <h2>Disconnect</h2>
+    <h3>5. Disconnect</h3>
     <p>To disconnect, run:</p>
     <pre><code>sudo wg-quick down mullvad_swiss</code></pre>
     <figure><img src="../img/mullvad-5.png" alt="Terminal output after disconnecting with wg-quick down" loading="lazy"></figure>
