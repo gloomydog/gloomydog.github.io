@@ -62,8 +62,8 @@ WireGuard relay.</p>
 works. WireGuard still protects your data; Shadowsocks hides the fact
 that it is WireGuard.</figcaption>
     </figure>
-    <p>In short, WireGuard protects <em>what</em> you send, and Shadowsocks
-hides <em>what kind of traffic</em> it is.</p>
+    <p>In short, WireGuard protects what you send, and Shadowsocks
+hides what kind of traffic it is.</p>
     <h2 id="setup">Setup</h2>
     <p>Mullvad calls this feature <em>anti-censorship</em>. You can turn
 Shadowsocks on from the command line:</p>
@@ -83,8 +83,7 @@ after enabling Shadowsocks.</figcaption>
     </figure>
     <p>To turn Shadowsocks off again:</p>
     <pre><code>mullvad anti-censorship set mode off</code></pre>
-    <p>The same option is available in the desktop app under VPN
-settings.</p>
+    
     <h2 id="capturing-with-wireshark">Capturing with Wireshark</h2>
     <h3 id="test-conditions">Test conditions</h3>
     <ul>
@@ -104,10 +103,6 @@ results.</p>
     <p>First, I captured normal VPN traffic with Shadowsocks turned off.</p>
     <p>Open Wireshark:</p>
     <pre><code>sudo wireshark</code></pre>
-    <p>Running Wireshark as root is the quickest way to get capture
-permission. For regular use, add yourself to the <code>wireshark</code>
-group instead (<code>sudo usermod -aG wireshark $USER</code>) and log in
-again.</p>
     <p>Select the <strong>physical</strong> interface, here
     <code>wlp1s0</code>. Do not pick the tunnel interface
     <code>wg0-mullvad</code>. That interface shows your traffic after
@@ -349,13 +344,9 @@ WireGuard is easy to identify from its fixed header, while the
 Shadowsocks-wrapped traffic is just UDP carrying random-looking bytes.
 The cost is a small, constant 55 bytes per packet.</p>
     <p>It is not invisible, though. Packet sizes and timing are still
-visible: in this test every ping produced packets of exactly the same
-length, once per second. A determined observer using traffic analysis
-could still notice patterns. Shadowsocks hides <em>what protocol</em>
-you use, not <em>that</em> you are sending traffic.</p>
-    <p>These results come from one laptop, one network and one VPN provider,
-with small samples. Treat them as a hands-on illustration rather than
-general measurements.</p>
+visible. A determined observer using traffic analysis
+could still notice patterns. Shadowsocks hides what protocol
+you use, not that you are sending traffic.</p>
     <h2 id="references">References</h2>
     <ul>
     <li>Shadowsocks, AEAD ciphers and packet format: <a href="https://shadowsocks.org/doc/aead.html">https://shadowsocks.org/doc/aead.html</a></li>
