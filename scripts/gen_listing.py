@@ -143,6 +143,7 @@ def build_page(directory: Path, descs=None) -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Index of /{html.escape(rel.as_posix())}/ | {USER}</title>
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon.png">
 <link rel="stylesheet" href="{css}">
 </head>
 <body>
