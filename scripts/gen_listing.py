@@ -268,34 +268,6 @@ def update_new_block() -> None:
 
 
 SITE = "https://gloomydog.github.io"
-SITEMAP_SECTIONS = ["blog", "tips", "projects"]  # pages listed in sitemap.xml (plus the top page and section indexes)
-
-
-def build_sitemap() -> None:
-    urls = [(f"{SITE}/", last_modified(ROOT / "index.html"))]
-    for section in SITEMAP_SECTIONS:
-        base = ROOT / section
-        if not base.is_dir():
-            continue
-        urls.append((f"{SITE}/{section}/", last_modified(base / "index.html")))
-        for f in sorted(base.rglob("*.html")):
-            rel = f.relative_to(ROOT).as_posix()
-            if f.name == "index.html" or rel in NO_ANNOUNCE or any(p.startswith(".") for p in f.relative_to(ROOT).parts):
-                continue
-            urls.append((f"{SITE}/{quote(rel)}", last_modified(f)))
-    lines = ['<?xml version="1.0" encoding="UTF-8"?>',
-             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
-    for loc, mod in urls:
-        lines += ["  <url>", f"    <loc>{html.escape(loc)}</loc>", f"    <lastmod>{mod}</lastmod>", "  </url>"]
-    lines.append("</urlset>")
-    new = "\n".join(lines) + "\n"
-    target = ROOT / "sitemap.xml"
-    if not target.exists() or target.read_text(encoding="utf-8") != new:
-        target.write_text(new, encoding="utf-8")
-    robots = ROOT / "robots.txt"
-    body = f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\n"
-    if not robots.exists() or robots.read_text(encoding="utf-8") != body:
-        robots.write_text(body, encoding="utf-8")
 
 
 def stamp_quotes() -> None:
@@ -309,37 +281,6 @@ def stamp_quotes() -> None:
     new = re.sub(r'src="quotes\.js(\?v=[0-9a-f]+)?"', f'src="quotes.js?v={h}"', text)
     if new != text:
         top.write_text(new, encoding="utf-8")
-
-
-def build_sitemap() -> None:
-    """sitemap.xml: top page, every listing page, every html page (no PDFs, no announce-excluded pages)."""
-    urls = [("/", last_modified(ROOT / "index.html"))]
-    for section in SECTIONS:
-        base = ROOT / section
-        if not base.is_dir():
-            continue
-        for f in sorted(base.rglob("*.html")):
-            rel = f.relative_to(ROOT)
-            if any(part.startswith(".") for part in rel.parts) or rel.as_posix() in NO_ANNOUNCE:
-                continue
-            if f.name == "index.html":
-                path = "/" + "/".join(quote(x) for x in rel.parts[:-1]) + "/"
-            else:
-                path = "/" + "/".join(quote(x) for x in rel.parts)
-            urls.append((path, last_modified(f)))
-    lines = ['<?xml version="1.0" encoding="UTF-8"?>',
-             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
-    for path, mod in urls:
-        lines.append(f"  <url><loc>{html.escape(SITE + path)}</loc><lastmod>{mod}</lastmod></url>")
-    lines.append("</urlset>")
-    new = "\n".join(lines) + "\n"
-    target = ROOT / "sitemap.xml"
-    if not target.exists() or target.read_text(encoding="utf-8") != new:
-        target.write_text(new, encoding="utf-8")
-    robots = f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\n"
-    rt = ROOT / "robots.txt"
-    if not rt.exists() or rt.read_text(encoding="utf-8") != robots:
-        rt.write_text(robots, encoding="utf-8")
 
 
 def main() -> None:
@@ -358,9 +299,7 @@ def main() -> None:
         total += len(dirs)
         update_top_page(section, descs)
     update_new_block()
-    build_sitemap()
     stamp_quotes()
-    build_sitemap()
     print(f"generated {total} listing page(s)")
 
 
