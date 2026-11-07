@@ -65,8 +65,6 @@ enabled.</figcaption>
     </figure>
     <p>To turn it off again:</p>
     <pre><code>mullvad anti-censorship set mode off</code></pre>
-    <p>The same option is available in the desktop app under VPN
-settings.</p>
     <h2 id="capturing-with-wireshark">Capturing with Wireshark</h2>
     <h3 id="test-conditions">Test conditions</h3>
     <ul>
@@ -203,9 +201,6 @@ directions. The result is about 4.2 packets per ping instead of 2, and
 639 bytes per ping instead of 404, about 1.6 times as much. Five of the
 replies were 273 bytes because an ACK was bundled into the same packet
 (234 + 39 bytes).</p>
-    <p>Latency barely changed. The average round trip was 20.1 ms with plain
-WireGuard and 21.6 ms with QUIC, and all 60 pings were answered in
-both cases.</p>
     <h2 id="sni">The server name is visible</h2>
     <p>QUIC has one weakness that Shadowsocks does not. The first packets of
 a QUIC connection, the <em>Initial</em> packets, are encrypted, but with
@@ -287,20 +282,13 @@ which is what makes the connection look like HTTP/3.</p>
     </table>
     <p>QUIC hides WireGuard well against simple pattern matching: the
 WireGuard header disappears, and the traffic goes to port 443 with
-ALPN <code>h3</code>, like ordinary HTTP/3. Unlike Shadowsocks, it does
-not try to look like nothing; it tries to look like something
-common.</p>
-    <p>It has costs and limits, though. Acknowledgements roughly double the
-number of packets, and traffic grows by about 60% for small packets
-like these pings. The server name is readable in the handshake, so a
+ALPN <code>h3</code>, like ordinary HTTP/3.</p>
+    <p>The server name is readable in the handshake, so a
 firewall that blocks by SNI or by Mullvad's IP addresses can still
 stop it. Networks that block or throttle UDP 443 altogether will stop
 it as well. As with Shadowsocks, packet sizes and timing are still
 visible: here a fixed pair of 229- and 234-byte packets once per second,
 which is not what web browsing looks like.</p>
-    <p>These results come from one laptop, one network and one VPN
-provider, with small samples. Treat them as a hands-on illustration
-rather than general measurements.</p>
     <h2 id="references">References</h2>
     <ul>
     <li>Mullvad, Introducing QUIC obfuscation for WireGuard: <a href="https://mullvad.net/en/blog/introducing-quic-obfuscation-for-wireguard">https://mullvad.net/en/blog/introducing-quic-obfuscation-for-wireguard</a></li>
