@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QUIC | gloomydog</title>
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon.png">
+<link rel="stylesheet" href="../style.css?v=8">
+</head>
+<body>
+<main>
+  <div class="prompt"><span class="user">gloomydog</span>:<span class="path">~/blog</span>$ cat quic.html</div>
+  <article class="doc">
+    <h1>QUIC</h1>
+    <p>In <a href="shadowsocks.html">the previous article</a>, I looked at
+how Shadowsocks hides WireGuard traffic. Mullvad VPN has another
+anti-censorship option: QUIC. Instead of making packets look like
+random bytes, it disguises the VPN as ordinary HTTP/3 web traffic, the
+kind Google and YouTube use every day.</p>
+    <p>In this article, I capture traffic with Wireshark and compare plain
+WireGuard with WireGuard over QUIC. How to use Wireshark and what plain
+WireGuard looks like were covered in the previous article, so I skip
+them here and focus on what QUIC changes.</p>
+    <h2 id="what-is-quic">What is QUIC?</h2>
+    <p>QUIC is a transport protocol originally developed by Google and
+standardized by the IETF in 2021 (RFC 9000). It is meant to replace the
+combination of TCP and TLS. QUIC runs over UDP instead of TCP, and
+encryption is built in: it uses TLS 1.3 internally, and there is no
+unencrypted mode.</p>
+    <p>Compared with TCP + TLS, QUIC has several advantages:</p>
+    <ul>
+    <li><strong>Faster connection setup.</strong> TCP and TLS each need
+their own handshake. QUIC combines them, so a new connection needs only
+one round trip, and a resumed connection can send data immediately
+(0-RTT).</li>
+    <li><strong>No head-of-line blocking.</strong> One connection carries
+many independent streams. A lost packet only delays the stream it
+belongs to, not the others.</li>
+    <li><strong>Connection migration.</strong> A connection is identified by
+a <em>connection ID</em>, not by IP address and port, so it survives a
+switch from Wi-Fi to mobile data.</li>
+    </ul>
+    <p>HTTP/3, the latest version of HTTP, runs on QUIC. A large share of
+web traffic today is QUIC on UDP port 443, which makes it a good
+disguise: blocking it would break a lot of the web.</p>
+    <p>Mullvad uses QUIC as an outer wrapper, much like Shadowsocks. Its
+implementation is based on MASQUE (RFC 9298, <em>Proxying UDP in
+HTTP</em>). Your client opens an HTTP/3 connection to the Mullvad
+relay, and each WireGuard packet is sent inside it as a QUIC
+datagram. The relay unwraps it and hands the WireGuard packet to the
+WireGuard server.</p>
+    <figure>
+    <img alt="How Mullvad's QUIC obfuscation works. WireGuard still protects your data; QUIC makes it look like HTTP/3." loading="lazy" src="../img/quic-1.png"/>
+    <figcaption>How Mullvad's QUIC obfuscation works. WireGuard still
+protects your data; QUIC makes it look like HTTP/3.</figcaption>
+    </figure>
+    <h2 id="setup">Setup</h2>
+    <p>You can turn QUIC on from the command line:</p>
+    <pre><code>mullvad anti-censorship set mode quic</code></pre>
+    <p><code>mullvad status</code> now lists QUIC under Features.</p>
+    <figure>
+    <img alt="mullvad status with QUIC enabled." loading="lazy" src="../img/quic-2.png"/>
+    <figcaption><code>mullvad status</code> with QUIC
+enabled.</figcaption>
+    </figure>
+    <p>To turn it off again:</p>
+    <pre><code>mullvad anti-censorship set mode off</code></pre>
+    <p>The same option is available in the desktop app under VPN
+settings.</p>
+    <h2 id="capturing-with-wireshark">Capturing with Wireshark</h2>
+    <h3 id="test-conditions">Test conditions</h3>
+    <ul>
+    <li>Client: Linux laptop on Wi-Fi (<code>wlp1s0</code>), Wireshark
+4.7</li>
+    <li>VPN: Mullvad, WireGuard over QUIC, Osaka relay
+(<code>jp-osa-wg-101</code>)</li>
+    <li>Traffic: <code>ping -c 60 -s 100</code>, the same as in the previous
+article</li>
+    <li>Plain WireGuard figures are taken from the previous article</li>
+    </ul>
+    <p>The capture procedure is the same as before: capture on the physical
+interface, run ping, then filter on the entry relay. With QUIC, my
+entry relay was <code>194.127.166.17</code>, port 443.</p>
+    <h3 id="quic-or-udp">QUIC or UDP?</h3>
+    <p>What Wireshark shows depends on whether the capture includes the
+start of the connection.</p>
+    <p>If you start capturing <em>before</em> the VPN connects, Wireshark
+sees the QUIC handshake (the <em>Initial</em> and <em>Handshake</em>
+packets) and labels the whole flow as <strong>QUIC</strong>. You can
+then filter with <code>quic</code>.</p>
+    <figure>
+    <img alt="Capture including the handshake, filtered with quic." loading="lazy" src="../img/quic-3.png"/>
+    <figcaption>Capture including the handshake. Wireshark recognizes the
+Initial and Handshake packets and labels the flow QUIC.</figcaption>
+    </figure>
+    <p>If the connection is already up when you start capturing, the
+Protocol column says only <strong>UDP</strong>, so filter with
+<code>udp</code> or the relay address.</p>
+    <figure>
+    <img alt="Capture without the handshake. The packets are labeled UDP." loading="lazy" src="../img/quic-4.png"/>
+    <figcaption>Capture without the handshake. The same connection is
+labeled UDP.</figcaption>
+    </figure>
+    <p>The reason is the packet format. During the handshake, QUIC uses
+<em>long-header</em> packets, which carry a version number and the
+lengths of the connection IDs, so Wireshark can identify them. After
+the handshake, QUIC switches to <em>short-header</em> packets: one flag
+byte, the connection ID, and then ciphertext. There is no version and no
+length field, so without having seen the handshake Wireshark cannot tell
+the packet is QUIC. If you want to label them anyway, use
+<strong>Analyze &gt; Decode As</strong> and set UDP port 443 to
+QUIC.</p>
+    <p>Open a packet and the WireGuard header (<code>04 00 00 00</code>) is
+gone. The payload is ciphertext. It is not completely random, though:
+the first byte is a flag byte (always between <code>0x40</code> and
+<code>0x7F</code> in short-header packets), and the next bytes are the
+connection ID, which is the same in every packet of the connection. In
+the packet below, from the relay, it is
+<code>3c 26 0d f2 38 f4 de 94</code>. In the other direction it is
+<code>63 e1 53 e5</code>.</p>
+    <figure>
+    <img alt="Packet detail. No WireGuard header; a flag byte and the connection ID, then ciphertext." loading="lazy" src="../img/quic-5.png"/>
+    <figcaption>Packet detail. No WireGuard header: a flag byte, the
+connection ID, then ciphertext.</figcaption>
+    </figure>
+    <h3 id="comparison">Comparison with plain WireGuard</h3>
+    <p>To compare under the same conditions as the plain WireGuard
+capture, which also has no handshake, the following uses the capture
+without the handshake.</p>
+    <p>In Protocol Hierarchy, the top layer is <strong>Data</strong>, as with
+Shadowsocks, instead of WireGuard Protocol.</p>
+    <figure>
+    <img alt="Protocol Hierarchy: UDP > Data, 252 packets." loading="lazy" src="../img/quic-6.png"/>
+    <figcaption>Protocol Hierarchy: UDP &gt; Data.</figcaption>
+    </figure>
+    <p>Packet Lengths is where QUIC looks very different. Plain WireGuard
+produced exactly 120 packets of 202 bytes. With QUIC, the same 60 pings
+produced <strong>252 packets</strong> of several sizes.</p>
+    <figure>
+    <img alt="Packet Lengths: 252 packets between 68 and 273 bytes." loading="lazy" src="../img/quic-7.png"/>
+    <figcaption>Packet Lengths: 252 packets, from 68 to 273
+bytes.</figcaption>
+    </figure>
+    <p>In Conversations, there is a single UDP flow to
+<code>194.127.166.17</code>, port <strong>443</strong>, the standard
+HTTPS port, instead of the random-looking port 43130 used by plain
+WireGuard.</p>
+    <figure>
+    <img alt="Conversations: one UDP flow to the relay on port 443." loading="lazy" src="../img/quic-8.png"/>
+    <figcaption>Conversations: one UDP flow to the relay on port
+443.</figcaption>
+    </figure>
+    <h2 id="overhead">How much overhead does QUIC add?</h2>
+    <p>Breaking down the 252 packets:</p>
+    <table>
+    <thead>
+    <tr>
+    <th>Packet</th>
+    <th style="text-align: right;">WireGuard only</th>
+    <th style="text-align: right;">WireGuard + QUIC</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+    <td>Echo request (client → relay)</td>
+    <td style="text-align: right;">202 B × 60</td>
+    <td style="text-align: right;">229 B × 60</td>
+    </tr>
+    <tr>
+    <td>Echo reply (relay → client)</td>
+    <td style="text-align: right;">202 B × 60</td>
+    <td style="text-align: right;">234 B × 55, 273 B × 5</td>
+    </tr>
+    <tr>
+    <td>QUIC control packets (mostly ACKs)</td>
+    <td style="text-align: right;">none</td>
+    <td style="text-align: right;">68–100 B × 132</td>
+    </tr>
+    <tr>
+    <td><strong>Total</strong></td>
+    <td style="text-align: right;"><strong>120 packets, 24,240 B</strong></td>
+    <td style="text-align: right;"><strong>252 packets, 38,360 B</strong></td>
+    </tr>
+    </tbody>
+    </table>
+    <p>Each ping packet grows by 27 bytes on the way out and 32 bytes on the
+way back. The figure below shows where the bytes go. QUIC adds a short
+header (a flag byte and the connection ID), 6 bytes for the packet
+number and the datagram framing, and a 16-byte authentication tag. The
+reply is 5 bytes larger because the relay's connection ID is 8 bytes
+instead of 4. The exact split of the 6 bytes is encrypted, so it cannot
+be read from the capture.</p>
+    <figure>
+    <img alt="Packet layout for ping -s 100. QUIC wraps the entire WireGuard packet, including the 04 00 00 00 header." loading="lazy" src="../img/quic-9.png"/>
+    <figcaption>Packet layout for <code>ping -s 100</code>. QUIC wraps the
+entire WireGuard packet, including the <code>04 00 00 00</code> header
+that identifies it.</figcaption>
+    </figure>
+    <p>The bigger cost is the number of packets. WireGuard simply sends
+datagrams and never acknowledges them. QUIC acknowledges what it
+receives, so each ping also triggers small ACK packets in both
+directions. The result is about 4.2 packets per ping instead of 2, and
+639 bytes per ping instead of 404, about 1.6 times as much. Five of the
+replies were 273 bytes because an ACK was bundled into the same packet
+(234 + 39 bytes).</p>
+    <p>Latency barely changed. The average round trip was 20.1 ms with plain
+WireGuard and 21.6 ms with QUIC, and all 60 pings were answered in
+both cases.</p>
+    <h2 id="sni">The server name is visible</h2>
+    <p>QUIC has one weakness that Shadowsocks does not. The first packets of
+a QUIC connection, the <em>Initial</em> packets, are encrypted, but with
+keys derived from public information: a salt fixed in the standard
+(RFC 9001) and the connection ID written in the packet. This is by
+design, so that the server can read the first message. It also means
+anyone watching the network can decrypt it, and Wireshark does so
+automatically.</p>
+    <p>The first message is a TLS ClientHello, and it contains the
+<em>Server Name Indication</em> (SNI), the name of the server you are
+connecting to. In a capture that includes the handshake, filter
+with:</p>
+    <pre><code>tls.handshake.extensions_server_name</code></pre>
+    <figure>
+    <img alt="Two ClientHello packets match the SNI filter." loading="lazy" src="../img/quic-10.png"/>
+    <figcaption>Two ClientHello packets match. The client connected once,
+then reconnected and resumed the session.</figcaption>
+    </figure>
+    <p>Then open a packet and follow <strong>QUIC IETF &gt; CRYPTO &gt;
+TLSv1.3 Record Layer &gt; Handshake Protocol: Client Hello &gt;
+Extension: server_name</strong>.</p>
+    <figure>
+    <img alt="The server name is jp-osa-wg-101.blockerad.eu." loading="lazy" src="../img/quic-11.png"/>
+    <figcaption>The server name is
+    <code>jp-osa-wg-101.blockerad.eu</code>.</figcaption>
+    </figure>
+    <p>The name <code>jp-osa-wg-101.blockerad.eu</code> is the Mullvad relay
+from <code>mullvad status</code>, under a domain used by Mullvad. A
+firewall that blocks by SNI, which is common, can recognize the
+connection as Mullvad from this one packet, even though everything after
+it is encrypted. The ClientHello also announces ALPN <code>h3</code>,
+which is what makes the connection look like HTTP/3.</p>
+    <h2 id="summary">Summary</h2>
+    <table>
+    <thead>
+    <tr>
+    <th></th>
+    <th>WireGuard only</th>
+    <th>WireGuard + QUIC</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+    <td>Wireshark Protocol column</td>
+    <td>WireGuard</td>
+    <td>QUIC (with handshake) / UDP (without)</td>
+    </tr>
+    <tr>
+    <td>Protocol Hierarchy (no handshake)</td>
+    <td>UDP &gt; WireGuard Protocol</td>
+    <td>UDP &gt; Data</td>
+    </tr>
+    <tr>
+    <td>Start of payload</td>
+    <td>Always <code>04 00 00 00</code> (data)</td>
+    <td>Flag byte + fixed connection ID</td>
+    </tr>
+    <tr>
+    <td>Entry relay (this test)</td>
+    <td><code>194.127.166.81:43130</code></td>
+    <td><code>194.127.166.17:443</code></td>
+    </tr>
+    <tr>
+    <td>Frame length, <code>ping -s 100</code></td>
+    <td>202 B</td>
+    <td>229 B out, 234 B back</td>
+    </tr>
+    <tr>
+    <td>Packets / bytes for 60 pings</td>
+    <td>120 / 24,240 B</td>
+    <td>252 / 38,360 B</td>
+    </tr>
+    <tr>
+    <td>Server name visible</td>
+    <td>No</td>
+    <td>Yes, in the handshake</td>
+    </tr>
+    </tbody>
+    </table>
+    <p>QUIC hides WireGuard well against simple pattern matching: the
+WireGuard header disappears, and the traffic goes to port 443 with
+ALPN <code>h3</code>, like ordinary HTTP/3. Unlike Shadowsocks, it does
+not try to look like nothing; it tries to look like something
+common.</p>
+    <p>It has costs and limits, though. Acknowledgements roughly double the
+number of packets, and traffic grows by about 60% for small packets
+like these pings. The server name is readable in the handshake, so a
+firewall that blocks by SNI or by Mullvad's IP addresses can still
+stop it. Networks that block or throttle UDP 443 altogether will stop
+it as well. As with Shadowsocks, packet sizes and timing are still
+visible: here a fixed pair of 229- and 234-byte packets once per second,
+which is not what web browsing looks like.</p>
+    <p>These results come from one laptop, one network and one VPN
+provider, with small samples. Treat them as a hands-on illustration
+rather than general measurements.</p>
+    <h2 id="references">References</h2>
+    <ul>
+    <li>Mullvad, Introducing QUIC obfuscation for WireGuard: <a href="https://mullvad.net/en/blog/introducing-quic-obfuscation-for-wireguard">https://mullvad.net/en/blog/introducing-quic-obfuscation-for-wireguard</a></li>
+    <li>RFC 9000, QUIC transport: <a href="https://www.rfc-editor.org/rfc/rfc9000">https://www.rfc-editor.org/rfc/rfc9000</a></li>
+    <li>RFC 9001, Using TLS to secure QUIC (Initial keys): <a href="https://www.rfc-editor.org/rfc/rfc9001">https://www.rfc-editor.org/rfc/rfc9001</a></li>
+    <li>RFC 9221, Unreliable datagram extension to QUIC: <a href="https://www.rfc-editor.org/rfc/rfc9221">https://www.rfc-editor.org/rfc/rfc9221</a></li>
+    <li>RFC 9298, Proxying UDP in HTTP (MASQUE): <a href="https://www.rfc-editor.org/rfc/rfc9298">https://www.rfc-editor.org/rfc/rfc9298</a></li>
+    </ul>
+  </article>
+  <div class="prompt"><a href="./">$ cd ..</a></div>
+  <footer>&copy; 2026 gloomydog</footer>
+</main>
+</body>
+</html>
