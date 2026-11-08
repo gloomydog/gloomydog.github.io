@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ghidra MCP | gloomydog</title>
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon.png">
+<link rel="stylesheet" href="../style.css?v=8">
+</head>
+<body>
+<main>
+  <div class="prompt"><span class="user">gloomydog</span>:<span class="path">~/tips</span>$ cat ghidra_mcp.html</div>
+  <article class="doc">
+    <h1 id="ghidra-mcp">Ghidra MCP on Arch Linux with Claude Code</h1>
+    <p>This tutorial shows how to install and run
+    <a href="https://github.com/LaurieWired/GhidraMCP">GhidraMCP</a> on
+    Arch Linux and use it from Claude Code. At the end, we test it by
+    reverse engineering a small crackme that I wrote myself.</p>
+    <p>Most GhidraMCP guides use Claude Desktop, but there is no official
+    Claude Desktop for Linux, so this guide uses Claude Code (the CLI)
+    instead.</p>
+    
+    <h2 id="how-it-works">1. How it works</h2>
+    <p>MCP (Model Context Protocol) is a standard way to connect an AI
+    model to external tools. GhidraMCP has two parts:</p>
+    <ol>
+    <li><strong>Ghidra plugin</strong> – runs inside Ghidra and starts a
+    local HTTP server (default: <code>http://127.0.0.1:8080</code>). It
+    exposes whatever program is open in the CodeBrowser.</li>
+    <li><strong>MCP server (<code>ghidra-mcp</code>)</strong> – a Python
+    program that Claude Code launches. It translates Claude’s tool calls
+    into HTTP requests to the plugin.</li>
+    </ol>
+    <pre class="src"><code>Claude Code  &lt;--MCP (stdio)--&gt;  ghidra-mcp  &lt;--HTTP :8080--&gt;  Ghidra plugin (CodeBrowser)</code></pre>
+    <p>With this, Claude can list functions, decompile and disassemble
+    code, follow cross-references, rename symbols, and so on, directly in
+    your Ghidra session.</p>
+    
+    <h2 id="prerequisites">2. Prerequisites</h2>
+    <ul>
+    <li>Arch Linux (other distributions work too; only the package commands
+    differ)</li>
+    <li>Ghidra <strong>12.1.4</strong> (must match the version of the
+    plugin release)</li>
+    <li>Python 3.10 or later</li>
+    <li>Claude Code, logged in</li>
+    </ul>
+    
+    <h2 id="install-ghidra">3. Install Ghidra</h2>
+    <pre><code>sudo pacman -S ghidra</code></pre>
+    <p>Check the version under <em>Help &gt; About Ghidra</em>.</p>
+    <p><strong>Version matters.</strong> A Ghidra extension only loads in
+    the exact Ghidra version it was built for. The GhidraMCP 2.0 plugin is
+    built for Ghidra 12.1.4. If your package is older (for example
+    12.1.2), installing the extension fails with “does not point to a
+    valid ghidra extension”. In that case, update Ghidra or download
+    12.1.4 from the
+    <a href="https://github.com/NationalSecurityAgency/ghidra/releases">official
+    releases</a>.</p>
+    
+    <h2 id="download-ghidramcp">4. Download GhidraMCP</h2>
+    <p>Open the repository at
+    <a href="https://github.com/LaurieWired/GhidraMCP">https://github.com/LaurieWired/GhidraMCP</a>
+    and follow the link to the latest release.</p>
+    <figure>
+    <img alt="GhidraMCP README" loading="lazy" src="../img/ghidra-mcp-1.png"/>
+    <figcaption>The README links to the latest release.</figcaption>
+    </figure>
+    <figure>
+    <img alt="GhidraMCP 2.0 release page" loading="lazy" src="../img/ghidra-mcp-2.png"/>
+    <figcaption>Download <code>GhidraMCP-release-2-0.zip</code> from
+    <em>Assets</em>.</figcaption>
+    </figure>
+    <p>Unzip it:</p>
+    <pre><code>unzip GhidraMCP-release-2-0.zip -d GhidraMCP</code></pre>
+    <figure>
+    <img alt="contents of the release" loading="lazy" src="../img/ghidra-mcp-3.png"/>
+    </figure>
+    <p>The release contains three files:</p>
+    <table>
+    <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+    <tbody>
+    <tr><td><code>ghidra_12.1.4_PUBLIC_20261010_GhidraMCP.zip</code></td><td>The
+    Ghidra extension (plugin)</td></tr>
+    <tr><td><code>ghidra_mcp-2.0.0-py3-none-any.whl</code></td><td>The MCP
+    server as a Python package (used below)</td></tr>
+    <tr><td><code>ghidra_mcp-2.0.0.tar.gz</code></td><td>Source package of
+    the same MCP server (not needed)</td></tr>
+    </tbody>
+    </table>
+    <p><strong>Note:</strong> Do not give the outer <code>GhidraMCP-release-2-0.zip</code> to
+    Ghidra. It is a bundle, not an extension, so Ghidra rejects it. Use the
+    inner <code>ghidra_12.1.4_..._GhidraMCP.zip</code>.</p>
+    <p>You do not need <code>git clone</code>. The release already contains
+    everything you need. Cloning is only needed if you want to build the
+    plugin from source.</p>
+    
+    <h2 id="set-up-ghidra">5. Set up the Ghidra plugin</h2>
+    <h3>5.1 Install the extension</h3>
+    <p>Open Ghidra and go to <em>File &gt; Install Extensions</em>. Click
+    the <strong>+</strong> button and select
+    <code>ghidra_12.1.4_PUBLIC_20261010_GhidraMCP.zip</code>.</p>
+    <figure>
+    <img alt="Install Extensions dialog" loading="lazy" src="../img/ghidra-mcp-4.png"/>
+    <figcaption>Add the extension with the + button.</figcaption>
+    </figure>
+    <p>Click OK and restart Ghidra. The extension is loaded only after a
+    restart.</p>
+    
+    <h3>5.2 Enable the plugin in the CodeBrowser</h3>
+    <p>The plugin runs in the <strong>CodeBrowser</strong>, not in the
+    project window. Click the dragon icon in the Tool Chest to open the
+    CodeBrowser.</p>
+    <figure>
+    <img alt="dragon icon in the Tool Chest" loading="lazy" src="../img/ghidra-mcp-5.png"/>
+    <figcaption>The dragon icon opens the CodeBrowser.</figcaption>
+    </figure>
+    <p>In the CodeBrowser, go to <em>File &gt; Configure</em> and click
+    <em>Configure</em> under <strong>Developer</strong>.</p>
+    <figure>
+    <img alt="Configure Tool dialog" loading="lazy" src="../img/ghidra-mcp-6.png"/>
+    <figcaption>Open the Developer plugin list.</figcaption>
+    </figure>
+    <p>Check <strong>GhidraMCPPlugin</strong> and click OK.</p>
+    <figure>
+    <img alt="GhidraMCPPlugin checkbox" loading="lazy" src="../img/ghidra-mcp-7.png"/>
+    <figcaption>Enable GhidraMCPPlugin.</figcaption>
+    </figure>
+    <p>The plugin now starts an HTTP server on port 8080. You only need to
+    do this once; Ghidra remembers the setting. To use another port, go to
+    <em>Edit &gt; Tool Options &gt; GhidraMCP HTTP Server</em>.</p>
+    <p>You can check that the server is running:</p>
+    <pre><code>ss -ltnp | grep 8080
+curl http://127.0.0.1:8080/</code></pre>
+    <p>If <code>curl</code> returns JSON (even an error such as
+    <code>"Unknown endpoint: /"</code>), the plugin is working.</p>
+    
+    <h2 id="set-up-claude-code">6. Set up Claude Code</h2>
+    <h3>6.1 Install the MCP server</h3>
+    <p>Go to the <code>GhidraMCP-release-2-0</code> directory, create a
+    virtual environment, and install the wheel into it:</p>
+    <pre><code>cd ~/tool/GhidraMCP/GhidraMCP-release-2-0
+python3 -m venv venv &amp;&amp; source venv/bin/activate
+pip install ghidra_mcp-2.0.0-py3-none-any.whl</code></pre>
+    <p>Arch marks the system Python as “externally managed”, so a plain
+    <code>pip install</code> fails with
+    <code>externally-managed-environment</code>. A virtual environment
+    avoids this and keeps the dependencies separate from the system.</p>
+    <p>Now there is a <code>venv</code> directory. It contains the
+    installed packages and their command-line scripts.</p>
+    <figure>
+    <img alt="venv directory created" loading="lazy" src="../img/ghidra-mcp-8.png"/>
+    </figure>
+    <figure>
+    <img alt="contents of venv/bin" loading="lazy" src="../img/ghidra-mcp-9.png"/>
+    <figcaption><code>venv/bin</code> contains the
+    <code>ghidra-mcp</code> command.</figcaption>
+    </figure>
+    <p>Check where the <code>ghidra-mcp</code> command was installed:</p>
+    <pre><code>pip show -f ghidra_mcp | grep -i bin</code></pre>
+    <figure>
+    <img alt="pip show output" loading="lazy" src="../img/ghidra-mcp-10.png"/>
+    <figcaption>The path is relative to <code>site-packages</code>, so the
+    command is <code>venv/bin/ghidra-mcp</code>.</figcaption>
+    </figure>
+    
+    <h3>6.2 Register it with Claude Code</h3>
+    <pre><code>claude mcp add -s user ghidra -- ~/tool/GhidraMCP/GhidraMCP-release-2-0/venv/bin/ghidra-mcp</code></pre>
+    <ul>
+    <li><code>ghidra</code> is the name of the server in Claude Code.</li>
+    <li>Everything after <code>--</code> is the command that Claude Code
+    runs. Use the full path to the venv binary, so you do not need to
+    activate the venv.</li>
+    <li><code>-s user</code> registers the server for your user, so it is
+    available in every directory. Without it, the default scope is
+    <code>local</code>, and the server is only available in the directory
+    where you ran the command.</li>
+    </ul>
+    <p>If you changed the plugin port, run <code>ghidra-mcp --help</code> to
+    see how to set the server address, and add that option to the
+    command.</p>
+    <p>Check the registration:</p>
+    <pre><code>claude mcp list</code></pre>
+    <figure>
+    <img alt="claude mcp list output" loading="lazy" src="../img/ghidra-mcp-11.png"/>
+    <figcaption><code>✓ Connected</code> means that Claude Code can start
+    the MCP server.</figcaption>
+    </figure>
+    <p><strong>Note:</strong> <code>Connected</code> only means that the MCP server started. It
+    does not mean that Ghidra is reachable. The tools work only while
+    Ghidra is running with a program open in the CodeBrowser.</p>
+    
+    <h2 id="test">7. Test GhidraMCP</h2>
+    <p>I wrote a small test program, <code>auth_ghidra</code>, in C. It is a
+    classic “crackme”: a registration window that asks for a name and a
+    serial number. The goal is to find a valid serial without reading the
+    source code. The source code is in the
+    <a href="#source">appendix</a>.</p>
+    <figure>
+    <img alt="auth_ghidra registration window" loading="lazy" src="../img/ghidra-mcp-12.png"/>
+    <figcaption>The test program asks for a name and a serial.</figcaption>
+    </figure>
+    
+    <h3>7.1 Open the binary in Ghidra</h3>
+    <p>Create a project in Ghidra, import <code>auth_ghidra</code>
+    (<em>File &gt; Import File</em>), and open it in the CodeBrowser. When
+    Ghidra asks whether to analyze the program, click <em>Yes</em> and use
+    the default options.</p>
+    <figure>
+    <img alt="auth_ghidra in the CodeBrowser" loading="lazy" src="../img/ghidra-mcp-13.png"/>
+    <figcaption><code>auth_ghidra</code> analyzed in the
+    CodeBrowser.</figcaption>
+    </figure>
+    
+    <h3>7.2 Start Claude Code</h3>
+    <p>Start <code>claude</code> in a terminal. Because we registered the
+    server with <code>-s user</code>, you can start it in any directory. A
+    dedicated working directory is still a good idea, because Claude can
+    read and write files there (for example, a keygen script).</p>
+    <p>Run <code>/mcp</code> to check that the <code>ghidra</code> server is
+    connected and its tools are loaded.</p>
+    <figure>
+    <img alt="/mcp output" loading="lazy" src="../img/ghidra-mcp-14.png"/>
+    <figcaption>The <code>ghidra</code> server is connected with 30
+    tools.</figcaption>
+    </figure>
+    
+    <h3>7.3 Ask Claude to analyze the program</h3>
+    <p>Give Claude a prompt such as:</p>
+    <pre><code>Use Ghidra MCP to analyze auth_ghidra and find how the serial is checked.</code></pre>
+    <p>Claude calls the GhidraMCP tools to list the functions, decompile the
+    registration handler, and work out the serial algorithm.</p>
+    <p><strong>Note:</strong> Some models may refuse a prompt that only says “crack this”. Because
+    this is your own test program, say so in the prompt (for example, “this
+    is my own crackme for practice”) and ask for an analysis of the
+    validation logic. I used Sonnet 5.5 for this test.</p>
+    <figure>
+    <img alt="Claude's analysis result" loading="lazy" src="../img/ghidra-mcp-15.png"/>
+    <figcaption>Claude found the algorithm, wrote a keygen, and generated
+    valid serials.</figcaption>
+    </figure>
+    <p>Claude found the following algorithm:</p>
+    <ol>
+    <li>The name must be 3–16 letters (A–Z, a–z only).</li>
+    <li>A hash of the name is computed with <code>h = h * 31 + c</code> for
+    each character (32-bit, wrapping).</li>
+    <li>The hash is XORed with the constant <code>0xDEADBEEF</code>.</li>
+    <li>The result is formatted as <code>%04X-%04X</code> (upper 16 bits,
+    then lower 16 bits).</li>
+    </ol>
+    <p>So each name has exactly one valid serial. Claude gave
+    <code>DB2B-BDA0</code> for the name <code>admin</code>.</p>
+    
+    <h3>7.4 Check the result</h3>
+    <p>I entered name <code>admin</code> and serial <code>DB2B-BDA0</code>,
+    and the registration succeeded.</p>
+    <figure>
+    <img alt="registration succeeded" loading="lazy" src="../img/ghidra-mcp-16.png"/>
+    <figcaption>The serial from Claude is accepted.</figcaption>
+    </figure>
+    
+    <h2 id="troubleshooting">8. Troubleshooting</h2>
+    <table>
+    <thead><tr><th>Problem</th><th>Cause and solution</th></tr></thead>
+    <tbody>
+    <tr><td>“… does not point to a valid ghidra extension”</td><td>You
+    selected the outer release zip, or your Ghidra version does not match
+    the plugin. Select the inner
+    <code>ghidra_12.1.4_..._GhidraMCP.zip</code> and use Ghidra
+    12.1.4.</td></tr>
+    <tr><td>GhidraMCPPlugin is not in the plugin list</td><td>You are in the
+    project window, not the CodeBrowser, or Ghidra was not restarted after
+    installing the extension.</td></tr>
+    <tr><td><code>pip install</code> fails with
+    <code>externally-managed-environment</code></td><td>Use a virtual
+    environment, as shown in 6.1.</td></tr>
+    <tr><td><code>ghidra</code> is missing in <code>/mcp</code> in some
+    directories</td><td>The server was registered with the default
+    <code>local</code> scope. Run <code>claude mcp remove ghidra</code>, then
+    add it again with <code>-s user</code>.</td></tr>
+    <tr><td>Claude says the Ghidra backend is not reachable</td><td>Ghidra is
+    not running, the plugin is disabled, or no program is open in the
+    CodeBrowser. Check with <code>ss -ltnp | grep 8080</code> and
+    <code>curl http://127.0.0.1:8080/</code>.</td></tr>
+    <tr><td>Port 8080 is already in use</td><td>Change the port in
+    <em>Edit &gt; Tool Options &gt; GhidraMCP HTTP Server</em> and give the
+    same address to <code>ghidra-mcp</code> (see
+    <code>ghidra-mcp --help</code>).</td></tr>
+    </tbody>
+    </table>
+    
+    <h2 id="source">Appendix: source code of auth_ghidra</h2>
+    <p>To compile it, install GTK 3 (<code>sudo pacman -S gtk3</code>) and
+    run:</p>
+    <pre><code>gcc auth_ghidra.c -o auth_ghidra $(pkg-config --cflags --libs gtk+-3.0)</code></pre>
+    <p>If you see <code>gtk/gtk.h: No such file or directory</code>, GTK 3
+    headers are missing, or the <code>pkg-config</code> part was left out of
+    the command.</p>
+    <pre class="src"><code>#include &lt;gtk/gtk.h&gt;
+#include &lt;string.h&gt;
+#include &lt;ctype.h&gt;
+
+#define MAGIC 0xDEADBEEFu
+
+/* Classic polynomial hash (same idea as Java&#39;s String.hashCode) */
+static unsigned int compute_hash(const char *name)
+{
+    unsigned int h = 0;
+    for (const char *p = name; *p; p++) {
+        h = h * 31u + (unsigned char)(*p);
+    }
+    return h;
+}
+
+static int valid_name(const char *name)
+{
+    size_t len = strlen(name);
+    if (len &lt; 3 || len &gt; 16)
+        return 0;
+
+    for (size_t i = 0; i &lt; len; i++) {
+        if (!isalpha((unsigned char)name[i]))
+            return 0;
+    }
+    return 1;
+}
+
+static int check_serial(const char *name, const char *serial)
+{
+    unsigned int expected = compute_hash(name) ^ MAGIC;
+    char buf[16];
+    g_snprintf(buf, sizeof(buf), &quot;%04X-%04X&quot;,
+               (expected &gt;&gt; 16) &amp; 0xFFFFu, expected &amp; 0xFFFFu);
+    return g_strcmp0(buf, serial) == 0;
+}
+
+static void show_message(GtkWindow *parent, GtkMessageType type, const char *msg)
+{
+    GtkWidget *dialog = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL, type,
+                                               GTK_BUTTONS_OK, &quot;%s&quot;, msg);
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+}
+
+static void on_register_clicked(GtkWidget *button, gpointer user_data)
+{
+    GtkWidget **entries = (GtkWidget **)user_data;
+    GtkEntry *name_entry = GTK_ENTRY(entries[0]);
+    GtkEntry *serial_entry = GTK_ENTRY(entries[1]);
+    GtkWindow *window = GTK_WINDOW(gtk_widget_get_toplevel(button));
+
+    const char *name = gtk_entry_get_text(name_entry);
+    const char *serial = gtk_entry_get_text(serial_entry);
+
+    if (!valid_name(name)) {
+        show_message(window, GTK_MESSAGE_WARNING,
+                      &quot;Invalid name. Use 3-16 letters only.&quot;);
+        return;
+    }
+
+    if (check_serial(name, serial)) {
+        char msg[256];
+        g_snprintf(msg, sizeof(msg),
+                   &quot;Thank you for registering, %s!\nYour copy is now fully licensed.&quot;,
+                   name);
+        show_message(window, GTK_MESSAGE_INFO, msg);
+    } else {
+        show_message(window, GTK_MESSAGE_ERROR, &quot;Invalid serial number.&quot;);
+    }
+}
+
+int main(int argc, char *argv[])
+{
+    gtk_init(&amp;argc, &amp;argv);
+
+    GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title(GTK_WINDOW(window), &quot;Registration&quot;);
+    gtk_window_set_default_size(GTK_WINDOW(window), 340, 180);
+    gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+    gtk_container_set_border_width(GTK_CONTAINER(window), 16);
+    g_signal_connect(window, &quot;destroy&quot;, G_CALLBACK(gtk_main_quit), NULL);
+
+    GtkWidget *grid = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
+    gtk_container_add(GTK_CONTAINER(window), grid);
+
+    GtkWidget *name_label = gtk_label_new(&quot;Name:&quot;);
+    gtk_widget_set_halign(name_label, GTK_ALIGN_START);
+    GtkWidget *name_entry = gtk_entry_new();
+
+    GtkWidget *serial_label = gtk_label_new(&quot;Serial:&quot;);
+    gtk_widget_set_halign(serial_label, GTK_ALIGN_START);
+    GtkWidget *serial_entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(serial_entry), &quot;XXXX-XXXX&quot;);
+
+    GtkWidget *button = gtk_button_new_with_label(&quot;Register&quot;);
+
+    gtk_grid_attach(GTK_GRID(grid), name_label,   0, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), name_entry,   1, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), serial_label, 0, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), serial_entry, 1, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), button,       0, 2, 2, 1);
+
+    gtk_widget_set_hexpand(name_entry, TRUE);
+    gtk_widget_set_hexpand(serial_entry, TRUE);
+
+    static GtkWidget *entries[2];
+    entries[0] = name_entry;
+    entries[1] = serial_entry;
+
+    g_signal_connect(button, &quot;clicked&quot;, G_CALLBACK(on_register_clicked), entries);
+    g_signal_connect(serial_entry, &quot;activate&quot;, G_CALLBACK(on_register_clicked), entries);
+
+    gtk_widget_show_all(window);
+    gtk_main();
+    return 0;
+}
+
+</code></pre>
+  </article>
+  <div class="prompt"><a href="./">$ cd ..</a></div>
+  <footer>&copy; 2026 gloomydog</footer>
+</main>
+</body>
+</html>
