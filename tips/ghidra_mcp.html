@@ -36,16 +36,6 @@
     code, follow cross-references, rename symbols, and so on, directly in
     your Ghidra session.</p>
     
-    <h2 id="prerequisites">2. Prerequisites</h2>
-    <ul>
-    <li>Arch Linux (other distributions work too; only the package commands
-    differ)</li>
-    <li>Ghidra <strong>12.1.4</strong> (must match the version of the
-    plugin release)</li>
-    <li>Python 3.10 or later</li>
-    <li>Claude Code, logged in</li>
-    </ul>
-    
     <h2 id="install-ghidra">3. Install Ghidra</h2>
     <pre><code>sudo pacman -S ghidra</code></pre>
     <p>Check the version under <em>Help &gt; About Ghidra</em>.</p>
@@ -91,9 +81,6 @@
     <p><strong>Note:</strong> Do not give the outer <code>GhidraMCP-release-2-0.zip</code> to
     Ghidra. It is a bundle, not an extension, so Ghidra rejects it. Use the
     inner <code>ghidra_12.1.4_..._GhidraMCP.zip</code>.</p>
-    <p>You do not need <code>git clone</code>. The release already contains
-    everything you need. Cloning is only needed if you want to build the
-    plugin from source.</p>
     
     <h2 id="set-up-ghidra">5. Set up the Ghidra plugin</h2>
     <h3>5.1 Install the extension</h3>
@@ -258,36 +245,6 @@ pip install ghidra_mcp-2.0.0-py3-none-any.whl</code></pre>
     <img alt="registration succeeded" loading="lazy" src="../img/ghidra-mcp-16.png"/>
     <figcaption>The serial from Claude is accepted.</figcaption>
     </figure>
-    
-    <h2 id="troubleshooting">8. Troubleshooting</h2>
-    <table>
-    <thead><tr><th>Problem</th><th>Cause and solution</th></tr></thead>
-    <tbody>
-    <tr><td>“… does not point to a valid ghidra extension”</td><td>You
-    selected the outer release zip, or your Ghidra version does not match
-    the plugin. Select the inner
-    <code>ghidra_12.1.4_..._GhidraMCP.zip</code> and use Ghidra
-    12.1.4.</td></tr>
-    <tr><td>GhidraMCPPlugin is not in the plugin list</td><td>You are in the
-    project window, not the CodeBrowser, or Ghidra was not restarted after
-    installing the extension.</td></tr>
-    <tr><td><code>pip install</code> fails with
-    <code>externally-managed-environment</code></td><td>Use a virtual
-    environment, as shown in 6.1.</td></tr>
-    <tr><td><code>ghidra</code> is missing in <code>/mcp</code> in some
-    directories</td><td>The server was registered with the default
-    <code>local</code> scope. Run <code>claude mcp remove ghidra</code>, then
-    add it again with <code>-s user</code>.</td></tr>
-    <tr><td>Claude says the Ghidra backend is not reachable</td><td>Ghidra is
-    not running, the plugin is disabled, or no program is open in the
-    CodeBrowser. Check with <code>ss -ltnp | grep 8080</code> and
-    <code>curl http://127.0.0.1:8080/</code>.</td></tr>
-    <tr><td>Port 8080 is already in use</td><td>Change the port in
-    <em>Edit &gt; Tool Options &gt; GhidraMCP HTTP Server</em> and give the
-    same address to <code>ghidra-mcp</code> (see
-    <code>ghidra-mcp --help</code>).</td></tr>
-    </tbody>
-    </table>
     
     <h2 id="source">Appendix: source code of auth_ghidra</h2>
     <p>To compile it, install GTK 3 (<code>sudo pacman -S gtk3</code>) and
