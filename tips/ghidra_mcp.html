@@ -36,7 +36,7 @@
     code, follow cross-references, rename symbols, and so on, directly in
     your Ghidra session.</p>
     
-    <h2 id="install-ghidra">3. Install Ghidra</h2>
+    <h2 id="install-ghidra">2. Install Ghidra</h2>
     <pre><code>sudo pacman -S ghidra</code></pre>
     <p>Check the version under <em>Help &gt; About Ghidra</em>.</p>
     <p><strong>Version matters.</strong> A Ghidra extension only loads in
@@ -48,7 +48,7 @@
     <a href="https://github.com/NationalSecurityAgency/ghidra/releases">official
     releases</a>.</p>
     
-    <h2 id="download-ghidramcp">4. Download GhidraMCP</h2>
+    <h2 id="download-ghidramcp">3. Download GhidraMCP</h2>
     <p>Open the repository at
     <a href="https://github.com/LaurieWired/GhidraMCP">https://github.com/LaurieWired/GhidraMCP</a>
     and follow the link to the latest release.</p>
@@ -82,8 +82,8 @@
     Ghidra. It is a bundle, not an extension, so Ghidra rejects it. Use the
     inner <code>ghidra_12.1.4_..._GhidraMCP.zip</code>.</p>
     
-    <h2 id="set-up-ghidra">5. Set up the Ghidra plugin</h2>
-    <h3>5.1 Install the extension</h3>
+    <h2 id="set-up-ghidra">4. Set up the Ghidra plugin</h2>
+    <h3>4.1 Install the extension</h3>
     <p>Open Ghidra and go to <em>File &gt; Install Extensions</em>. Click
     the <strong>+</strong> button and select
     <code>ghidra_12.1.4_PUBLIC_20261010_GhidraMCP.zip</code>.</p>
@@ -94,7 +94,7 @@
     <p>Click OK and restart Ghidra. The extension is loaded only after a
     restart.</p>
     
-    <h3>5.2 Enable the plugin in the CodeBrowser</h3>
+    <h3>4.2 Enable the plugin in the CodeBrowser</h3>
     <p>The plugin runs in the <strong>CodeBrowser</strong>, not in the
     project window. Click the dragon icon in the Tool Chest to open the
     CodeBrowser.</p>
@@ -122,8 +122,8 @@ curl http://127.0.0.1:8080/</code></pre>
     <p>If <code>curl</code> returns JSON (even an error such as
     <code>"Unknown endpoint: /"</code>), the plugin is working.</p>
     
-    <h2 id="set-up-claude-code">6. Set up Claude Code</h2>
-    <h3>6.1 Install the MCP server</h3>
+    <h2 id="set-up-claude-code">5. Set up Claude Code</h2>
+    <h3>5.1 Install the MCP server</h3>
     <p>Go to the <code>GhidraMCP-release-2-0</code> directory, create a
     virtual environment, and install the wheel into it:</p>
     <pre><code>cd ~/tool/GhidraMCP/GhidraMCP-release-2-0
@@ -151,7 +151,7 @@ pip install ghidra_mcp-2.0.0-py3-none-any.whl</code></pre>
     command is <code>venv/bin/ghidra-mcp</code>.</figcaption>
     </figure>
     
-    <h3>6.2 Register it with Claude Code</h3>
+    <h3>5.2 Register it with Claude Code</h3>
     <pre><code>claude mcp add -s user ghidra -- ~/tool/GhidraMCP/GhidraMCP-release-2-0/venv/bin/ghidra-mcp</code></pre>
     <ul>
     <li><code>ghidra</code> is the name of the server in Claude Code.</li>
@@ -177,7 +177,7 @@ pip install ghidra_mcp-2.0.0-py3-none-any.whl</code></pre>
     does not mean that Ghidra is reachable. The tools work only while
     Ghidra is running with a program open in the CodeBrowser.</p>
     
-    <h2 id="test">7. Test GhidraMCP</h2>
+    <h2 id="test">6. Test GhidraMCP</h2>
     <p>I wrote a small test program, <code>auth_ghidra</code>, in C. It is a
     classic “crackme”: a registration window that asks for a name and a
     serial number. The goal is to find a valid serial without reading the
@@ -188,7 +188,7 @@ pip install ghidra_mcp-2.0.0-py3-none-any.whl</code></pre>
     <figcaption>The test program asks for a name and a serial.</figcaption>
     </figure>
     
-    <h3>7.1 Open the binary in Ghidra</h3>
+    <h3>6.1 Open the binary in Ghidra</h3>
     <p>Create a project in Ghidra, import <code>auth_ghidra</code>
     (<em>File &gt; Import File</em>), and open it in the CodeBrowser. When
     Ghidra asks whether to analyze the program, click <em>Yes</em> and use
@@ -199,7 +199,7 @@ pip install ghidra_mcp-2.0.0-py3-none-any.whl</code></pre>
     CodeBrowser.</figcaption>
     </figure>
     
-    <h3>7.2 Start Claude Code</h3>
+    <h3>6.2 Start Claude Code</h3>
     <p>Start <code>claude</code> in a terminal. Because we registered the
     server with <code>-s user</code>, you can start it in any directory. A
     dedicated working directory is still a good idea, because Claude can
@@ -212,7 +212,7 @@ pip install ghidra_mcp-2.0.0-py3-none-any.whl</code></pre>
     tools.</figcaption>
     </figure>
     
-    <h3>7.3 Ask Claude to analyze the program</h3>
+    <h3>6.3 Ask Claude to analyze the program</h3>
     <p>Give Claude a prompt such as:</p>
     <pre><code>Use Ghidra MCP to analyze auth_ghidra and find how the serial is checked.</code></pre>
     <p>Claude calls the GhidraMCP tools to list the functions, decompile the
@@ -238,7 +238,7 @@ pip install ghidra_mcp-2.0.0-py3-none-any.whl</code></pre>
     <p>So each name has exactly one valid serial. Claude gave
     <code>DB2B-BDA0</code> for the name <code>admin</code>.</p>
     
-    <h3>7.4 Check the result</h3>
+    <h3>6.4 Check the result</h3>
     <p>I entered name <code>admin</code> and serial <code>DB2B-BDA0</code>,
     and the registration succeeded.</p>
     <figure>
