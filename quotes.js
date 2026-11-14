@@ -61,4 +61,14 @@ window.QUOTES = [
     author: "Pierre-Joseph Proudhon",
     source: "Théorie de la propriété"
   },
+    {
+    text: "But the chief penalty is to be governed by someone worse if a man will not himself hold office and rule.",
+    author: "Plato",
+    source: "The Republic"
+  },
+      {
+    text: "Les foules n’ont jamais eu soif de vérités. Devant les évidences qui leur déplaisent, elles se détournent, préférant déifier l’erreur, si l’erreur les séduit. Qui sait les illusionner est aisément leur maître ; qui tente de les désillusionner est toujours leur victime.",
+    author: "Gustave Le Bon",
+    source: "Psychologie des foules"
+  },
 ];
