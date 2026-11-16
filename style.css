@@ -72,3 +72,12 @@ table.news td a { overflow-wrap: anywhere; }
 table.news td.meta.date { white-space: nowrap; }
 article.doc pre.src code::before { content: none; }
 article.doc figcaption { color: var(--muted); font-size: .7rem; line-height: 1.4; margin-top: 4px; }
+article.doc table code { color: var(--green); }
+article.doc .cmdcell { display: flex; flex-direction: column; }
+article.doc .cmdcell code { padding: 3px 0; }
+article.doc .cmdcell code + code { border-top: 1px dashed var(--border); }
+article.doc .cmd-toc > li { margin: 0 0 4px; }
+article.doc details summary { cursor: pointer; }
+article.doc details summary a { color: var(--fg); }
+article.doc details ul { margin: 6px 0 4px 1.6em; }
+article.doc details ul li { margin: 0 0 4px; }
