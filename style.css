@@ -78,6 +78,7 @@ article.doc table tbody tr + tr td { border-top: 1px dashed var(--border); }
 article.doc .cmdcell { display: flex; flex-direction: column; }
 article.doc .cmdcell code { padding: 3px 0; }
 article.doc .cmdcell code + code { border-top: 1px dashed var(--border); }
+article.doc .cmd-toc { list-style: none; padding-left: 0; }
 article.doc .cmd-toc > li { margin: 0 0 4px; }
 article.doc details summary { cursor: pointer; }
 article.doc details summary a { color: var(--fg); }
