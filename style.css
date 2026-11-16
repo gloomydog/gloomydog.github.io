@@ -73,6 +73,8 @@ table.news td.meta.date { white-space: nowrap; }
 article.doc pre.src code::before { content: none; }
 article.doc figcaption { color: var(--muted); font-size: .7rem; line-height: 1.4; margin-top: 4px; }
 article.doc table code { color: var(--green); }
+article.doc table tbody tr td { padding-top: 4px; padding-bottom: 4px; }
+article.doc table tbody tr + tr td { border-top: 1px dashed var(--border); }
 article.doc .cmdcell { display: flex; flex-direction: column; }
 article.doc .cmdcell code { padding: 3px 0; }
 article.doc .cmdcell code + code { border-top: 1px dashed var(--border); }
