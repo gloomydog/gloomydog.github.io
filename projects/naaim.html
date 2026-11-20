@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NAAIM Exposure Index vs. Stock Indices</title>
+<title>NAAIM</title>
 <style>
   :root {
     --bg:#ffffff; --text:#1f2328; --muted:#6e7781; --grid:#eef0f3; --axis:#d0d7de;
@@ -18,7 +18,10 @@
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif; }
   .wrap { max-width:1100px; margin:0 auto; padding:12px; }
-  h1 { font-size:17px; margin:0 0 10px; font-weight:600; }
+  h1 { font-size:17px; margin:0 0 8px; font-weight:600; }
+  .intro { max-width:860px; margin:0 0 12px; color:var(--muted); font-size:13px; line-height:1.55; }
+  .intro p { margin:0 0 7px; }
+  .intro b { color:var(--text); font-weight:600; }
   .toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px; }
   .seg { display:inline-flex; border:1px solid var(--axis); border-radius:6px; overflow:hidden; }
   .seg button { background:var(--btn); color:var(--text); border:0; border-left:1px solid var(--axis); padding:5px 10px; font:inherit; font-size:13px; cursor:pointer; }
@@ -38,6 +41,10 @@
 <body>
 <div class="wrap">
   <h1>NAAIM Exposure Index vs. Stock Indices</h1>
+  <div class="intro">
+    <p>The <b>NAAIM Exposure Index</b> represents the average exposure to US equity markets reported each week by the member active investment managers of the National Association of Active Investment Managers (NAAIM). It is a gauge of how heavily professional money managers are actually positioned in stocks &mdash; from net short (below 0) to fully leveraged long (above 100) &mdash; and is widely read as a sentiment indicator: crowded highs often mark complacency, while deep lows tend to appear near market bottoms.</p>
+    <p>The index was originally published openly, but NAAIM later changed its policy and now restricts the data, so the figures you can get publicly run about <b>three weeks behind</b>. This page is where I update the NAAIM reading <b>as soon as it is released each Wednesday</b> and plot it against the major US stock indices, so the latest sentiment can be compared with price directly.</p>
+  </div>
   <div class="toolbar">
     <div class="seg" id="sym">
       <button data-v="GSPC" class="on">S&amp;P 500</button>
