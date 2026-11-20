@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HDD | gloomydog</title>
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon.png">
+<link rel="stylesheet" href="../style.css?v=11">
+</head>
+<body>
+<main>
+  <div class="prompt"><span class="user">gloomydog</span>:<span class="path">~/blog</span>$ cat hdd.html</div>
+  <article class="doc">
+    <h1 id="hdd-format">Testing and Formatting Junk HDDs from Akihabara on Linux</h1>
+    <p>I bought four used (&ldquo;junk&rdquo;) 3.5-inch HDDs in Akihabara: one 1&nbsp;TB drive for 1,500 yen and three 500&nbsp;GB drives for 500 yen each. Junk drives are cheap, but there is no guarantee they work, so before using them I checked their health and formatted them. My plan is to use them later as storage for a Debian-based NAS. In this post, I explain how to check a used HDD on Linux (Arch Linux in my case) and how to format it, including a USB problem I ran into on the way.</p>
+    <figure>
+    <img src="../img/hdd-drives.jpg" alt="The four junk HDDs on a mat" loading="lazy">
+    <figcaption>The four junk HDDs: a 1 TB HGST Ultrastar, a Hitachi Deskstar, and two Seagate Barracudas.</figcaption>
+    </figure>
+    <p>To connect the drives, I bought a USB 3.0 to SATA adapter with an AC power supply on AliExpress for 1,200 yen. Unlike 2.5-inch drives, 3.5-inch HDDs need 12&nbsp;V to spin up, which USB bus power cannot provide, so an adapter with its own power supply is required. The adapter uses a JMicron JMS578 chip, which becomes important later.</p>
+    <figure>
+    <img src="../img/hdd-adapter.jpg" alt="USB 3.0 to SATA adapter with its power supply" loading="lazy">
+    <figcaption>The USB-SATA adapter, its enclosure, and its 12 V power supply.</figcaption>
+    </figure>
+
+    <h2 id="first-hdd">First HDD: HGST Ultrastar 1&nbsp;TB</h2>
+    <p>This is an HGST (Western Digital) Ultrastar, an enterprise drive designed for data centers. First, identify the device name of the connected drive with <code>lsblk</code>. Use the size and model name to find it.</p>
+    <pre class="src"><code>lsblk -o NAME,SIZE,MODEL,SERIAL,FSTYPE,MOUNTPOINT
+NAME          SIZE MODEL                     SERIAL       FSTYPE MOUNTPOINT
+sda         931.5G HGST HUS722T1TALA604      WCC6M7EDA5V2
+zram0           4G                                        swap   [SWAP]
+nvme0n1     238.5G IM2P33F3 NVMe ADATA 256GB 2K242LAB82NU
+├─nvme0n1p1     1G                                        vfat   /boot
+└─nvme0n1p2 237.5G                                        ext4   /</code></pre>
+    <p>Here, <code>sda</code> is the HDD (<code>nvme0n1</code> is my system SSD). <strong>Double-check the device name</strong>: every command below that writes to the disk will destroy its data. Next, read the drive&rsquo;s S.M.A.R.T. data with <code>smartctl</code> (in the <code>smartmontools</code> package: <code>sudo pacman -S smartmontools</code> on Arch, <code>sudo apt install smartmontools</code> on Debian/Ubuntu). If the adapter does not pass SMART data through, try adding <code>-d sat</code>.</p>
+    <pre><code>sudo smartctl -a /dev/sda</code></pre>
+    <pre class="src"><code>[sudo] password for gloomydog:
+smartctl 7.5 2025-04-30 r5714 [x86_64-linux-7.3.4-arch1-2] (local build)
+Copyright (C) 2002-25, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF INFORMATION SECTION ===
+Model Family:     Hitachi/HGST Ultrastar 7K2
+Device Model:     HGST HUS722T1TALA604
+Serial Number:    WCC6M7EDA5V2
+LU WWN Device Id: 5 0014ee 2680d1fdc
+Firmware Version: RAGNWA09
+User Capacity:    1,000,204,886,016 bytes [1.00 TB]
+Sector Size:      512 bytes logical/physical
+Rotation Rate:    7200 rpm
+Form Factor:      3.5 inches
+Device is:        In smartctl database 7.5/5706
+ATA Version is:   ACS-3 T13/2161-D revision 5
+SATA Version is:  SATA 3.1, 6.0 Gb/s (current: 6.0 Gb/s)
+SMART support is: Available - device has SMART capability.
+SMART support is: Enabled
+
+=== START OF READ SMART DATA SECTION ===
+SMART overall-health self-assessment test result: PASSED
+
+SMART Attributes Data Structure revision number: 16
+Vendor Specific SMART Attributes with Thresholds:
+ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_FAILED RAW_VALUE
+  1 Raw_Read_Error_Rate     0x002f   200   200   051    Pre-fail  Always       -       0
+  3 Spin_Up_Time            0x0027   151   151   021    Pre-fail  Always       -       3425
+  4 Start_Stop_Count        0x0032   100   100   000    Old_age   Always       -       18
+  5 Reallocated_Sector_Ct   0x0033   200   200   140    Pre-fail  Always       -       0
+  7 Seek_Error_Rate         0x002e   100   200   000    Old_age   Always       -       0
+  9 Power_On_Hours          0x0032   040   040   000    Old_age   Always       -       43878
+ 10 Spin_Retry_Count        0x0032   100   253   000    Old_age   Always       -       0
+ 12 Power_Cycle_Count       0x0032   100   100   000    Old_age   Always       -       18
+192 Power-Off_Retract_Count 0x0032   200   200   000    Old_age   Always       -       11
+193 Load_Cycle_Count        0x0032   200   200   000    Old_age   Always       -       10
+194 Temperature_Celsius     0x0022   124   089   000    Old_age   Always       -       19
+196 Reallocated_Event_Count 0x0032   200   200   000    Old_age   Always       -       0
+197 Current_Pending_Sector  0x0032   200   200   000    Old_age   Always       -       0
+198 Offline_Uncorrectable   0x0030   100   253   000    Old_age   Offline      -       0
+199 UDMA_CRC_Error_Count    0x0032   200   200   000    Old_age   Always       -       0
+
+SMART Error Log Version: 1
+No Errors Logged
+
+SMART Self-test log structure revision number 1
+No self-tests have been logged.  [To run self-tests, use: smartctl -t]
+
+The above only provides legacy SMART information - try 'smartctl -x' for more</code></pre>
+    <p>These are the attributes to look at:</p>
+    <table>
+    <thead><tr><th>Attribute</th><th>Value</th><th>Meaning</th></tr></thead>
+    <tbody>
+    <tr><td>SMART overall-health</td><td>PASSED</td><td>The drive&rsquo;s own verdict. Not enough on its own, but FAILED means &ldquo;do not use&rdquo;.</td></tr>
+    <tr><td>5 Reallocated_Sector_Ct</td><td>0</td><td>Bad sectors already replaced by spares</td></tr>
+    <tr><td>197 Current_Pending_Sector</td><td>0</td><td>Unstable sectors waiting to be reallocated</td></tr>
+    <tr><td>198 Offline_Uncorrectable</td><td>0</td><td>Sectors that could not be read</td></tr>
+    <tr><td>199 UDMA_CRC_Error_Count</td><td>0</td><td>Transfer errors, usually caused by the cable or adapter</td></tr>
+    <tr><td>9 Power_On_Hours</td><td>43,878</td><td>About 5 years of running time</td></tr>
+    </tbody>
+    </table>
+    <p>Attributes 5, 197 and 198 are the most important: anything other than 0 is a sign that the platter is degrading. This drive has no bad sectors and no errors logged. The power-on time of about 5 years is long, but enterprise drives are built for 24/7 operation, so it is acceptable. Interestingly, the power cycle count is only 18, which means it ran almost continuously in a server.</p>
+    <p>The SMART values only reflect what the drive has experienced so far. To check it actively, run the built-in self-test. The short test checks the main parts of the drive in about 2 minutes.</p>
+    <pre><code>sudo smartctl -t short /dev/sda  # takes about 2 minutes</code></pre>
+    <figure>
+    <img src="../img/hdd-3.png" alt="smartctl -t short running" loading="lazy">
+    <figcaption>The short self-test starting; it takes about 1&ndash;2 minutes.</figcaption>
+    </figure>
+    <p>After waiting, show the result:</p>
+    <pre><code>sudo smartctl -l selftest /dev/sda  # show the result</code></pre>
+    <figure>
+    <img src="../img/hdd-4.png" alt="smartctl -l selftest output" loading="lazy">
+    <figcaption>One earlier test was interrupted, but the latest short test completed without error.</figcaption>
+    </figure>
+    <p>&ldquo;Completed without error&rdquo; means the test passed. There is also a long test (<code>smartctl -t long</code>) that reads the whole surface of the disk and can find hidden bad sectors. It takes about 2 hours for this drive, so I skipped it this time, but I recommend it if you plan to store important data.</p>
+
+    <h3 id="format-1">Formatting</h3>
+    <p>Make sure once more that <code>/dev/sda</code> is the right disk, then create a new GPT partition table and one partition that uses the whole disk. This erases everything on the drive.</p>
+    <pre><code>lsblk /dev/sda  # check again</code></pre>
+    <pre><code>sudo parted /dev/sda mklabel gpt</code></pre>
+    <pre><code>sudo parted /dev/sda mkpart primary ext4 0% 100%</code></pre>
+    <p>parted prints &ldquo;Information: You may need to update /etc/fstab.&rdquo; This is just a notice and can be ignored.</p>
+    <pre><code>lsblk /dev/sda</code></pre>
+    <p>You can see that the new partition <code>sda1</code> has been created.</p>
+    <figure>
+    <img src="../img/hdd-5.png" alt="lsblk showing the new sda1 partition" loading="lazy">
+    <figcaption><code>lsblk /dev/sda</code> showing the new <code>sda1</code> partition.</figcaption>
+    </figure>
+    <p>Then create an ext4 file system on it:</p>
+    <pre><code>sudo mkfs.ext4 /dev/sda1</code></pre>
+
+    <h3 id="uas">Problem: mkfs never finishes (UAS)</h3>
+    <p>However, I hit a problem here: mkfs stopped at &ldquo;Creating journal&rdquo; and never finished. I checked the kernel log:</p>
+    <pre><code>sudo dmesg | tail -20</code></pre>
+    <pre class="src"><code>sd 0:0:0:0: [sda] tag#25 CDB: Write(10) 2a 00 3a 10 fc 00 00 04 00 00
+sd 0:0:0:0: [sda] tag#24 uas_eh_abort_handler 0 uas-tag 17 inflight: CMD OUT
+sd 0:0:0:0: [sda] tag#24 CDB: Write(10) 2a 00 3a 10 f8 00 00 04 00 00
+sd 0:0:0:0: [sda] tag#23 uas_eh_abort_handler 0 uas-tag 16 inflight: CMD OUT
+sd 0:0:0:0: [sda] tag#23 CDB: Write(10) 2a 00 3a 10 f4 00 00 04 00 00
+sd 0:0:0:0: [sda] tag#0 uas_eh_abort_handler 0 uas-tag 22 inflight: CMD OUT
+sd 0:0:0:0: [sda] tag#0 CDB: Write(10) 2a 00 3a 11 0c 00 00 04 00 00
+scsi host0: uas_eh_host_reset_handler start
+usb 4-1: reset SuperSpeed USB device number 3 using xhci_hcd
+scsi host0: uas_eh_host_reset_handler success</code></pre>
+    <p>The log is full of <code>uas_eh_abort_handler</code> messages followed by a USB reset. Write commands were timing out and the kernel kept resetting the USB connection. This is a known compatibility problem between some USB-SATA bridge chips and <strong>UAS</strong> (USB Attached SCSI), the faster USB storage protocol that Linux uses by default. The HDD itself is fine; the UDMA_CRC_Error_Count of 0 also suggests the drive is not the problem.</p>
+    <p>The workaround is to disable UAS for this adapter so that Linux falls back to the older <code>usb-storage</code> driver. It is slightly slower, but stable. First stop mkfs (<kbd>Ctrl</kbd>+<kbd>C</kbd>, or <code>sudo pkill mkfs.ext4</code>), then find the adapter&rsquo;s USB ID:</p>
+    <pre><code>lsusb</code></pre>
+    <figure>
+    <img src="../img/hdd-6.png" alt="lsusb showing the JMicron JMS578 adapter" loading="lazy">
+    <figcaption>The adapter shows up as JMicron JMS578 (<code>152d:0578</code>).</figcaption>
+    </figure>
+    <p>The ID we need is <code>152d:0578</code> (JMicron JMS578).</p>
+    <p>To disable UAS, run the following two commands. The first one makes the setting permanent (it is applied every time the module loads); the second one applies it immediately to the running kernel, so you do not need to reboot. After running them, unplug the adapter and plug it back in.</p>
+    <pre><code>echo &quot;options usb-storage quirks=152d:0578:u&quot; | sudo tee /etc/modprobe.d/disable-uas.conf</code></pre>
+    <pre><code>echo &quot;152d:0578:u&quot; | sudo tee /sys/module/usb_storage/parameters/quirks</code></pre>
+    <p>Then check that the driver has changed from <code>uas</code> to <code>usb-storage</code>:</p>
+    <pre><code>lsusb -t</code></pre>
+    <figure>
+    <img src="../img/hdd-7.png" alt="lsusb -t showing the usb-storage driver" loading="lazy">
+    <figcaption>The adapter now uses <code>Driver=usb-storage</code> instead of <code>uas</code>.</figcaption>
+    </figure>
+    <p>If it still says <code>Driver=uas</code> after a reboot, the module may be loaded from the initramfs. On Arch, regenerate it with <code>sudo mkinitcpio -P</code> and reboot. <code>dmesg</code> should now show &ldquo;UAS is ignored for this device, using usb-storage instead&rdquo;.</p>
+    <p>After that, mkfs finally finished successfully:</p>
+    <pre><code>sudo mkfs.ext4 /dev/sda1</code></pre>
+    <figure>
+    <img src="../img/hdd-8.png" alt="mkfs.ext4 completing successfully" loading="lazy">
+    <figcaption><code>mkfs.ext4</code> completing successfully after disabling UAS.</figcaption>
+    </figure>
+    <p>The new drive now also appears in the file manager.</p>
+    <figure>
+    <img src="../img/hdd-9.png" alt="The formatted drive in the file manager" loading="lazy">
+    <figcaption>The formatted drive listed under Removable Devices in the file manager.</figcaption>
+    </figure>
+
+    <h3 id="mount">Mounting</h3>
+    <p>Mount it, give your user ownership so you can write without sudo, and check the size:</p>
+    <pre><code>sudo mount /dev/sda1 /mnt</code></pre>
+    <pre><code>sudo chown $USER: /mnt</code></pre>
+    <pre><code>df -h /mnt</code></pre>
+    <figure>
+    <img src="../img/hdd-10.png" alt="df -h showing the mounted drive" loading="lazy">
+    <figcaption><code>df -h /mnt</code>: 916 GB total, 870 GB available.</figcaption>
+    </figure>
+    <p>The 1&nbsp;TB drive shows up as 916&nbsp;GB, with 870&nbsp;GB available. The difference has three causes: 1&nbsp;TB (10<sup>12</sup> bytes) is 931&nbsp;GiB in binary units; ext4 metadata (inode tables and the journal) takes about 15&nbsp;GB; and ext4 reserves 5% (about 46&nbsp;GB) for the root user. For a pure data disk, such as NAS storage, the reserved space is unnecessary and can be released:</p>
+    <pre><code>sudo tune2fs -m 0 /dev/sda1</code></pre>
+    <p>Before unplugging the drive, always unmount it with <code>sudo umount /mnt</code>.</p>
+
+    <h2 id="second-hdd">Second HDD: Hitachi Deskstar 500&nbsp;GB</h2>
+    <p>Next is a Hitachi Deskstar 7K1000.C (HDS721050CLA362). The adapter is the same, so UAS is already disabled.</p>
+    <pre class="src"><code>sudo smartctl -a /dev/sda
+
+=== START OF INFORMATION SECTION ===
+Model Family:     Hitachi Deskstar 7K1000.C
+Device Model:     Hitachi HDS721050CLA362
+Serial Number:    JP1572JE044A4K
+User Capacity:    500,107,862,016 bytes [500 GB]
+Rotation Rate:    7200 rpm
+Form Factor:      3.5 inches
+ATA Version is:   ATA8-ACS T13/1699-D revision 4
+SATA Version is:  SATA 2.6, 3.0 Gb/s
+SMART support is: Available - device has SMART capability.
+SMART support is: Enabled
+
+=== START OF READ SMART DATA SECTION ===
+SMART overall-health self-assessment test result: PASSED
+
+ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_FAILED RAW_VALUE
+  5 Reallocated_Sector_Ct   0x0033   100   100   005    Pre-fail  Always       -       0
+  9 Power_On_Hours          0x0012   098   098   000    Old_age   Always       -       14406
+ 12 Power_Cycle_Count       0x0032   099   099   000    Old_age   Always       -       4210
+197 Current_Pending_Sector  0x0022   100   100   000    Old_age   Always       -       0
+198 Offline_Uncorrectable   0x0008   100   100   000    Old_age   Offline      -       0
+199 UDMA_CRC_Error_Count    0x000a   200   200   000    Old_age   Always       -       0
+
+SMART Error Log Version: 0
+No Errors Logged
+
+SMART Self-test log structure revision number 1
+Num  Test_Description    Status                  Remaining  LifeTime(hours)  LBA_of_first_error
+# 1  Short offline       Interrupted (host reset)      30%     14406         -
+# 2  Short offline       Interrupted (host reset)      30%     14406         -
+# 3  Short offline       Interrupted (host reset)      60%     14406         -
+
+The above only provides legacy SMART information - try 'smartctl -x' for more</code></pre>
+    <p>The SMART values look good: PASSED, attributes 5, 197, 198 and 199 are all 0, and no errors are logged. The power-on time is 14,406 hours (about 1.6 years), but the power cycle count is high (4,210), so it was probably used in a desktop PC that was turned on and off every day.</p>
+    <p>However, the short self-test never finished. The log says &ldquo;Interrupted (host reset)&rdquo; with 30&ndash;60% remaining, which means the test was cut off before it could check the whole drive. <code>dmesg</code> showed no USB errors this time, only repeated &ldquo;Synchronizing SCSI cache&rdquo; messages. My guess is that the USB adapter (or the OS) sends a reset or standby command to the drive during the test. I tried disabling standby with <code>hdparm -S 0</code>, but it did not help. Since the SMART values themselves are clean, I skipped the self-test and moved on to formatting. If you want a real surface check in this situation, <code>sudo badblocks -sv /dev/sda</code> does a read-only scan of the whole disk without relying on the drive&rsquo;s self-test.</p>
+    <figure>
+    <img src="../img/hdd-11.png" alt="Self-test log showing interrupted tests" loading="lazy">
+    <figcaption>The self-test log: interrupted by a host reset each time, with 30&ndash;60% remaining.</figcaption>
+    </figure>
+    <p>Formatting followed the same steps as the first drive.</p>
+    <figure>
+    <img src="../img/hdd-12.png" alt="Formatting and mounting the Hitachi drive" loading="lazy">
+    <figcaption>Formatting and mounting the Hitachi drive: 458 GB available.</figcaption>
+    </figure>
+
+    <h2 id="third-hdd">Third HDD: Seagate Barracuda 7200.12 500&nbsp;GB</h2>
+    <pre class="src"><code>sudo smartctl -a /dev/sda
+
+=== START OF INFORMATION SECTION ===
+Model Family:     Seagate Barracuda 7200.12
+Device Model:     ST3500418AS
+Serial Number:    9VMVPT6P
+User Capacity:    500,107,862,016 bytes [500 GB]
+Rotation Rate:    7200 rpm
+ATA Version is:   ATA8-ACS T13/1699-D revision 4
+SATA Version is:  SATA 2.6, 3.0 Gb/s
+
+==> WARNING: A firmware update for this drive may be available,
+see the following Seagate web pages:
+http://knowledge.seagate.com/articles/en_US/FAQ/207931en
+http://knowledge.seagate.com/articles/en_US/FAQ/213891en
+
+SMART support is: Available - device has SMART capability.
+SMART support is: Enabled
+
+=== START OF READ SMART DATA SECTION ===
+SMART overall-health self-assessment test result: PASSED
+
+ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_FAILED RAW_VALUE
+  1 Raw_Read_Error_Rate     0x000f   103   099   006    Pre-fail  Always       -       6090054
+  5 Reallocated_Sector_Ct   0x0033   100   100   036    Pre-fail  Always       -       0
+  7 Seek_Error_Rate         0x000f   085   060   030    Pre-fail  Always       -       367007316
+  9 Power_On_Hours          0x0032   085   085   000    Old_age   Always       -       13142
+189 High_Fly_Writes         0x003a   090   090   000    Old_age   Always       -       10
+195 Hardware_ECC_Recovered  0x001a   037   025   000    Old_age   Always       -       6090054
+197 Current_Pending_Sector  0x0012   100   100   000    Old_age   Always       -       0
+198 Offline_Uncorrectable   0x0010   100   100   000    Old_age   Offline      -       0
+199 UDMA_CRC_Error_Count    0x003e   200   200   000    Old_age   Always       -       0
+
+SMART Error Log Version: 1
+ATA Error Count: 4
+
+Error 4 occurred at disk power-on lifetime: 7552 hours (314 days + 16 hours)
+  When the command that caused the error occurred, the device was active or idle.
+  After command completion occurred, registers were:
+  ER ST SC SN CL CH DH
+  -- -- -- -- -- -- --
+  04 71 03 80 01 32 40
+
+(errors 1-3 omitted, all at the same 7552-hour timestamp)
+
+SMART Self-test log structure revision number 1
+No self-tests have been logged.  [To run self-tests, use: smartctl -t]
+
+The above only provides legacy SMART information - try 'smartctl -x' for more</code></pre>
+    <p>Note that Seagate drives show huge raw values for Raw_Read_Error_Rate (1), Seek_Error_Rate (7) and Hardware_ECC_Recovered (195). This is normal for Seagate: the raw value is an internal counter, so look at VALUE compared with THRESH instead, which is fine here.</p>
+    <p>The critical attributes (5, 197, 198, 199) are 0 and the power-on time is 13,142 hours. Two things are a little worrying, though: High_Fly_Writes is 10, and the error log contains 4 ATA errors (&ldquo;Device Fault&rdquo;). However, all four happened at 7,552 hours, a long time ago, and nothing has been logged in the 5,500 hours since, so it was probably a one-time event such as a power problem. I will use this drive, but keep an eye on it.</p>
+    <p>The short self-test was interrupted in the same way as the Hitachi drive. At first I suspected the 500&nbsp;GB drives, but since these are different drives from different makers, the more likely cause is the combination of the USB adapter and older SATA 3&nbsp;Gb/s drives.</p>
+    <figure>
+    <img src="../img/hdd-13.png" alt="Self-test log aborted by host" loading="lazy">
+    <figcaption>The self-test log: aborted by host at 13,142 power-on hours.</figcaption>
+    </figure>
+    <p>Again, I moved on to formatting.</p>
+    <figure>
+    <img src="../img/hdd-14.png" alt="Formatting and mounting the Seagate 7200.12 drive" loading="lazy">
+    <figcaption>Formatting and mounting the Seagate 7200.12 drive.</figcaption>
+    </figure>
+
+    <h2 id="fourth-hdd">Fourth HDD: Seagate Barracuda 7200.14 500&nbsp;GB</h2>
+    <pre class="src"><code>sudo smartctl -a /dev/sda
+
+=== START OF INFORMATION SECTION ===
+Model Family:     Seagate Barracuda 7200.14 (AF)
+Device Model:     ST500DM002-1SB10A
+Serial Number:    ZA4ARP80
+User Capacity:    500,107,862,016 bytes [500 GB]
+Sector Sizes:     512 bytes logical, 4096 bytes physical
+Rotation Rate:    7200 rpm
+Form Factor:      3.5 inches
+ATA Version is:   ACS-3 T13/2161-D revision 3b
+SATA Version is:  SATA 3.1, 6.0 Gb/s (current: 6.0 Gb/s)
+SMART support is: Available - device has SMART capability.
+SMART support is: Enabled
+
+=== START OF READ SMART DATA SECTION ===
+SMART overall-health self-assessment test result: PASSED
+
+ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_FAILED RAW_VALUE
+  5 Reallocated_Sector_Ct   0x0033   100   100   010    Pre-fail  Always       -       0
+  9 Power_On_Hours          0x0032   062   062   000    Old_age   Always       -       33858
+ 12 Power_Cycle_Count       0x0032   095   095   000    Old_age   Always       -       6006
+187 Reported_Uncorrect      0x0032   100   100   000    Old_age   Always       -       0
+197 Current_Pending_Sector  0x0032   100   100   000    Old_age   Always       -       0
+198 Offline_Uncorrectable   0x0030   100   100   000    Old_age   Offline      -       0
+199 UDMA_CRC_Error_Count    0x0032   200   200   000    Old_age   Always       -       0
+
+SMART Error Log Version: 1
+No Errors Logged
+
+SMART Self-test log structure revision number 1
+Num  Test_Description    Status                  Remaining  LifeTime(hours)  LBA_of_first_error
+# 1  Short offline       Completed without error       00%     10453         -
+# 2  Short offline       Completed without error       00%     10453         -
+# 3  Short offline       Completed without error       00%         1         -
+
+The above only provides legacy SMART information - try 'smartctl -x' for more</code></pre>
+    <p>This drive is also clean in the critical attributes (5, 187, 197, 198, 199 are all 0, no errors logged). Its weak point is age: 33,858 hours of power-on time (about 3.9 years) and over 6,000 power cycles, the most worn of the three 500&nbsp;GB drives. It is fine for now, but I would not trust it with data that has no backup.</p>
+    <p>In the self-test log, the latest test shows &ldquo;Aborted by host&rdquo;; I interrupted it myself by running another <code>smartctl</code> command while it was running. The older entries (at 10,453 and 1 hours) are from the previous owner. When formatting, mkfs warned that the partition &ldquo;contains a vfat file system labelled &lsquo;SYSTEM&rsquo;&rdquo;. This is a leftover from the previous owner (probably a Windows EFI partition), so I answered <code>y</code> to overwrite it.</p>
+    <figure>
+    <img src="../img/hdd-15.png" alt="mkfs.ext4 warning about a leftover vfat partition" loading="lazy">
+    <figcaption>mkfs warns about a leftover vfat &lsquo;SYSTEM&rsquo; partition from the previous owner; answered <code>y</code> to overwrite it.</figcaption>
+    </figure>
+
+    <h2 id="summary">Summary</h2>
+    <table>
+    <thead><tr><th>Drive</th><th>Size</th><th>Price</th><th>Power-on hours</th><th>Bad sectors</th><th>Notes</th></tr></thead>
+    <tbody>
+    <tr><td>HGST Ultrastar 7K2</td><td>1&nbsp;TB</td><td>1,500 yen</td><td>43,878</td><td>0</td><td>Enterprise drive; short test passed</td></tr>
+    <tr><td>Hitachi Deskstar 7K1000.C</td><td>500&nbsp;GB</td><td>500 yen</td><td>14,406</td><td>0</td><td>Self-test interrupted by host</td></tr>
+    <tr><td>Seagate Barracuda 7200.12</td><td>500&nbsp;GB</td><td>500 yen</td><td>13,142</td><td>0</td><td>4 old ATA errors; self-test interrupted</td></tr>
+    <tr><td>Seagate Barracuda 7200.14</td><td>500&nbsp;GB</td><td>500 yen</td><td>33,858</td><td>0</td><td>Most worn; 6,000+ power cycles</td></tr>
+    </tbody>
+    </table>
+    <p>All four junk drives turned out to be usable: 2.5&nbsp;TB in total for 3,000 yen (plus 1,200 yen for the adapter). What I learned:</p>
+    <ul>
+    <li>Check the SMART attributes 5, 197 and 198 first. If they are not 0, do not trust the drive.</li>
+    <li>If mkfs or large writes hang over USB and <code>dmesg</code> shows <code>uas_eh_abort_handler</code>, disable UAS for the adapter.</li>
+    <li>Self-tests can be interrupted by USB adapters; this does not necessarily mean the drive is bad.</li>
+    <li>Used drives can fail at any time. Use them for backups or data that also exists elsewhere, and check the SMART values again after a few weeks.</li>
+    </ul>
+
+    <h2 id="next">Next: using the drives in a NAS</h2>
+    <p>Since the NAS will run Debian, the ext4 file systems can be used as they are, without reformatting. On the NAS, find the UUID with <code>lsblk -f</code> and add an entry to <code>/etc/fstab</code> so the drive is mounted automatically at boot:</p>
+    <pre class="src"><code>UUID=&lt;your-uuid&gt;  /mnt/nas  ext4  defaults,nofail  0  2</code></pre>
+    <p>The <code>nofail</code> option lets the system boot even when the drive is not connected. If your user ID on the NAS differs from the one on this PC, fix the ownership with <code>sudo chown &lt;user&gt;: /mnt/nas</code>.</p>
+  </article>
+  <div class="prompt"><a href="./">$ cd ..</a></div>
+  <footer>&copy; 2026 gloomydog</footer>
+</main>
+</body>
+</html>
