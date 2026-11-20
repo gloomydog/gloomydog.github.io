@@ -12,12 +12,12 @@
   <div class="prompt"><span class="user">gloomydog</span>:<span class="path">~/blog</span>$ cat hdd.html</div>
   <article class="doc">
     <h1 id="hdd-format">Testing and Formatting Junk HDDs from Akihabara on Linux</h1>
-    <p>I bought four used (&ldquo;junk&rdquo;) 3.5-inch HDDs in Akihabara: one 1&nbsp;TB drive for 1,500 yen and three 500&nbsp;GB drives for 500 yen each. Junk drives are cheap, but there is no guarantee they work, so before using them I checked their health and formatted them. My plan is to use them later as storage for a Debian-based NAS. In this post, I explain how to check a used HDD on Linux (Arch Linux in my case) and how to format it, including a USB problem I ran into on the way.</p>
+    <p>I bought four used 3.5-inch HDDs in Akihabara: one 1&nbsp;TB drive for 1,500 yen and three 500&nbsp;GB drives for 500 yen each. Junk drives are cheap, but there is no guarantee they work, so before using them I checked their health and formatted them. My plan is to use them later as storage for a Debian-based NAS. In this post, I explain how to check a used HDD on Linux (Arch Linux in my case) and how to format it, including a USB problem I ran into on the way.</p>
     <figure>
     <img src="../img/hdd-drives.jpg" alt="The four junk HDDs on a mat" loading="lazy">
     <figcaption>The four junk HDDs: a 1 TB HGST Ultrastar, a Hitachi Deskstar, and two Seagate Barracudas.</figcaption>
     </figure>
-    <p>To connect the drives, I bought a USB 3.0 to SATA adapter with an AC power supply on AliExpress for 1,200 yen. Unlike 2.5-inch drives, 3.5-inch HDDs need 12&nbsp;V to spin up, which USB bus power cannot provide, so an adapter with its own power supply is required. The adapter uses a JMicron JMS578 chip, which becomes important later.</p>
+    <p>To connect the drives, I bought a USB 3.0 to SATA adapter with an AC power supply on AliExpress for 1,200 yen. Unlike 2.5-inch drives, 3.5-inch HDDs need 12&nbsp;V to spin up, which USB bus power cannot provide, so an adapter with its own power supply is required. The adapter uses a JMicron JMS578 chip.</p>
     <figure>
     <img src="../img/hdd-adapter.jpg" alt="USB 3.0 to SATA adapter with its power supply" loading="lazy">
     <figcaption>The USB-SATA adapter, its enclosure, and its 12 V power supply.</figcaption>
@@ -32,7 +32,7 @@ zram0           4G                                        swap   [SWAP]
 nvme0n1     238.5G IM2P33F3 NVMe ADATA 256GB 2K242LAB82NU
 ├─nvme0n1p1     1G                                        vfat   /boot
 └─nvme0n1p2 237.5G                                        ext4   /</code></pre>
-    <p>Here, <code>sda</code> is the HDD (<code>nvme0n1</code> is my system SSD). <strong>Double-check the device name</strong>: every command below that writes to the disk will destroy its data. Next, read the drive&rsquo;s S.M.A.R.T. data with <code>smartctl</code> (in the <code>smartmontools</code> package: <code>sudo pacman -S smartmontools</code> on Arch, <code>sudo apt install smartmontools</code> on Debian/Ubuntu). If the adapter does not pass SMART data through, try adding <code>-d sat</code>.</p>
+    <p>Here, <code>sda</code> is the HDD (<code>nvme0n1</code> is my system SSD). Next, read the drive&rsquo;s S.M.A.R.T. data with <code>smartctl</code> (in the <code>smartmontools</code> package: <code>sudo pacman -S smartmontools</code> on Arch ). If the adapter does not pass SMART data through, try adding <code>-d sat</code>.</p>
     <pre><code>sudo smartctl -a /dev/sda</code></pre>
     <pre class="src"><code>[sudo] password for gloomydog:
 smartctl 7.5 2025-04-30 r5714 [x86_64-linux-7.3.4-arch1-2] (local build)
@@ -138,7 +138,7 @@ sd 0:0:0:0: [sda] tag#0 CDB: Write(10) 2a 00 3a 11 0c 00 00 04 00 00
 scsi host0: uas_eh_host_reset_handler start
 usb 4-1: reset SuperSpeed USB device number 3 using xhci_hcd
 scsi host0: uas_eh_host_reset_handler success</code></pre>
-    <p>The log is full of <code>uas_eh_abort_handler</code> messages followed by a USB reset. Write commands were timing out and the kernel kept resetting the USB connection. This is a known compatibility problem between some USB-SATA bridge chips and <strong>UAS</strong> (USB Attached SCSI), the faster USB storage protocol that Linux uses by default. The HDD itself is fine; the UDMA_CRC_Error_Count of 0 also suggests the drive is not the problem.</p>
+    <p>The log is full of <code>uas_eh_abort_handler</code> messages followed by a USB reset. Write commands were timing out and the kernel kept resetting the USB connection. This is a known compatibility problem between some USB-SATA bridge chips and <strong>UAS</strong> (USB Attached SCSI), the faster USB storage protocol that Linux uses by default.</p>
     <p>The workaround is to disable UAS for this adapter so that Linux falls back to the older <code>usb-storage</code> driver. It is slightly slower, but stable. First stop mkfs (<kbd>Ctrl</kbd>+<kbd>C</kbd>, or <code>sudo pkill mkfs.ext4</code>), then find the adapter&rsquo;s USB ID:</p>
     <pre><code>lsusb</code></pre>
     <figure>
@@ -282,7 +282,7 @@ No self-tests have been logged.  [To run self-tests, use: smartctl -t]
 The above only provides legacy SMART information - try 'smartctl -x' for more</code></pre>
     <p>Note that Seagate drives show huge raw values for Raw_Read_Error_Rate (1), Seek_Error_Rate (7) and Hardware_ECC_Recovered (195). This is normal for Seagate: the raw value is an internal counter, so look at VALUE compared with THRESH instead, which is fine here.</p>
     <p>The critical attributes (5, 197, 198, 199) are 0 and the power-on time is 13,142 hours. Two things are a little worrying, though: High_Fly_Writes is 10, and the error log contains 4 ATA errors (&ldquo;Device Fault&rdquo;). However, all four happened at 7,552 hours, a long time ago, and nothing has been logged in the 5,500 hours since, so it was probably a one-time event such as a power problem. I will use this drive, but keep an eye on it.</p>
-    <p>The short self-test was interrupted in the same way as the Hitachi drive. At first I suspected the 500&nbsp;GB drives, but since these are different drives from different makers, the more likely cause is the combination of the USB adapter and older SATA 3&nbsp;Gb/s drives.</p>
+    <p>The short self-test was interrupted in the same way as the Hitachi drive. </p>
     <figure>
     <img src="../img/hdd-13.png" alt="Self-test log aborted by host" loading="lazy">
     <figcaption>The self-test log: aborted by host at 13,142 power-on hours.</figcaption>
@@ -332,7 +332,7 @@ Num  Test_Description    Status                  Remaining  LifeTime(hours)  LBA
 
 The above only provides legacy SMART information - try 'smartctl -x' for more</code></pre>
     <p>This drive is also clean in the critical attributes (5, 187, 197, 198, 199 are all 0, no errors logged). Its weak point is age: 33,858 hours of power-on time (about 3.9 years) and over 6,000 power cycles, the most worn of the three 500&nbsp;GB drives. It is fine for now, but I would not trust it with data that has no backup.</p>
-    <p>In the self-test log, the latest test shows &ldquo;Aborted by host&rdquo;; I interrupted it myself by running another <code>smartctl</code> command while it was running. The older entries (at 10,453 and 1 hours) are from the previous owner. When formatting, mkfs warned that the partition &ldquo;contains a vfat file system labelled &lsquo;SYSTEM&rsquo;&rdquo;. This is a leftover from the previous owner (probably a Windows EFI partition), so I answered <code>y</code> to overwrite it.</p>
+    <p>When formatting, mkfs warned that the partition &ldquo;contains a vfat file system labelled &lsquo;SYSTEM&rsquo;&rdquo;. This is a leftover from the previous owner (probably a Windows EFI partition), so I answered <code>y</code> to overwrite it.</p>
     <figure>
     <img src="../img/hdd-15.png" alt="mkfs.ext4 warning about a leftover vfat partition" loading="lazy">
     <figcaption>mkfs warns about a leftover vfat &lsquo;SYSTEM&rsquo; partition from the previous owner; answered <code>y</code> to overwrite it.</figcaption>
@@ -343,23 +343,12 @@ The above only provides legacy SMART information - try 'smartctl -x' for more</c
     <thead><tr><th>Drive</th><th>Size</th><th>Price</th><th>Power-on hours</th><th>Bad sectors</th><th>Notes</th></tr></thead>
     <tbody>
     <tr><td>HGST Ultrastar 7K2</td><td>1&nbsp;TB</td><td>1,500 yen</td><td>43,878</td><td>0</td><td>Enterprise drive; short test passed</td></tr>
-    <tr><td>Hitachi Deskstar 7K1000.C</td><td>500&nbsp;GB</td><td>500 yen</td><td>14,406</td><td>0</td><td>Self-test interrupted by host</td></tr>
-    <tr><td>Seagate Barracuda 7200.12</td><td>500&nbsp;GB</td><td>500 yen</td><td>13,142</td><td>0</td><td>4 old ATA errors; self-test interrupted</td></tr>
+    <tr><td>Hitachi Deskstar 7K1000.C</td><td>500&nbsp;GB</td><td>500 yen</td><td>14,406</td><td>0</td><td>-</td></tr>
+    <tr><td>Seagate Barracuda 7200.12</td><td>500&nbsp;GB</td><td>500 yen</td><td>13,142</td><td>0</td><td>-</td></tr>
     <tr><td>Seagate Barracuda 7200.14</td><td>500&nbsp;GB</td><td>500 yen</td><td>33,858</td><td>0</td><td>Most worn; 6,000+ power cycles</td></tr>
     </tbody>
     </table>
-    <p>All four junk drives turned out to be usable: 2.5&nbsp;TB in total for 3,000 yen (plus 1,200 yen for the adapter). What I learned:</p>
-    <ul>
-    <li>Check the SMART attributes 5, 197 and 198 first. If they are not 0, do not trust the drive.</li>
-    <li>If mkfs or large writes hang over USB and <code>dmesg</code> shows <code>uas_eh_abort_handler</code>, disable UAS for the adapter.</li>
-    <li>Self-tests can be interrupted by USB adapters; this does not necessarily mean the drive is bad.</li>
-    <li>Used drives can fail at any time. Use them for backups or data that also exists elsewhere, and check the SMART values again after a few weeks.</li>
-    </ul>
-
-    <h2 id="next">Next: using the drives in a NAS</h2>
-    <p>Since the NAS will run Debian, the ext4 file systems can be used as they are, without reformatting. On the NAS, find the UUID with <code>lsblk -f</code> and add an entry to <code>/etc/fstab</code> so the drive is mounted automatically at boot:</p>
-    <pre class="src"><code>UUID=&lt;your-uuid&gt;  /mnt/nas  ext4  defaults,nofail  0  2</code></pre>
-    <p>The <code>nofail</code> option lets the system boot even when the drive is not connected. If your user ID on the NAS differs from the one on this PC, fix the ownership with <code>sudo chown &lt;user&gt;: /mnt/nas</code>.</p>
+    <p>All four junk drives turned out to be usable: 2.5&nbsp;TB in total for 3,000 yen (plus 1,200 yen for the adapter).</p>
   </article>
   <div class="prompt"><a href="./">$ cd ..</a></div>
   <footer>&copy; 2026 gloomydog</footer>
