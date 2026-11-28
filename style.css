@@ -84,3 +84,7 @@ article.doc details summary { cursor: pointer; }
 article.doc details summary a { color: var(--fg); }
 article.doc details ul { margin: 6px 0 4px 1.6em; }
 article.doc details ul li { margin: 0 0 4px; }
+article.doc .warn { border-left: 3px solid var(--down, #ef5350); padding: 2px 0 2px 12px; margin: 0 0 14px; }
+article.doc .note { border-left: 3px solid var(--blue); padding: 2px 0 2px 12px; margin: 0 0 14px; }
+article.doc .warn p, article.doc .note p { margin: 0 0 6px; }
+article.doc .warn p:last-child, article.doc .note p:last-child { margin: 0; }
