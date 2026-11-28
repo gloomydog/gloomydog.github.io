@@ -194,12 +194,10 @@ Num  Test_Description  Status                       Power_on_Hours
     <h3 id="ssd-a">SSD-A (SanDisk Z400s / SATA)</h3>
     <ul>
     <li><code>blkdiscard</code> needed <code>-f</code> because the disk still had a partition table.</li>
-    <li>After initialization it had a single partition, formatted as ext4 and labelled <code>files</code>.</li>
     </ul>
     <h3 id="ssd-b">SSD-B (SK hynix BC511 / NVMe)</h3>
     <ul>
     <li><code>blkdiscard -f</code> failed with <code>ioctl failed: Operation not supported</code> because the USB bridge does not support TRIM. I skipped TRIM.</li>
-    <li>After initialization it had a single ext4 partition labelled <code>photos</code>.</li>
     </ul>
 
   </article>
