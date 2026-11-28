@@ -12,13 +12,11 @@
   <div class="prompt"><span class="user">gloomydog</span>:<span class="path">~/blog</span>$ cat ssd_erase.html</div>
   <article class="doc">
     <h1>Formatting Old SSDs for My NAS</h1>
-    <p>I found two old SSDs in a drawer: an NVMe drive and a SATA drive. I want to reuse them in my new NAS, so first I have to wipe all the old data and format them. This post records exactly what I did, including the SMART health checks I ran beforehand and the mistakes I made along the way, so the next time I can follow it step by step.</p>
+    <p>I found two old SSDs in a drawer: an NVMe drive and a SATA drive. I want to reuse them in my new NAS, so first I have to wipe all the old data and format them. This post records exactly what I did, including the SMART health checks.</p>
     <figure>
     <img src="../img/ssd-1.jpg" alt="An NVMe SSD in a USB enclosure and a 2.5-inch SATA SSD connected through a USB-SATA adapter" loading="lazy">
     <figcaption>The two drives: the NVMe SSD in a USB enclosure (top) and the 2.5-inch SATA SSD on a USB&ndash;SATA adapter (bottom).</figcaption>
     </figure>
-    <div class="warn">
-    <p><strong>Warning:</strong> formatting destroys all data on the target and cannot be undone. Every command below that contains <code>/dev/sdX</code> is destructive. Replace <code>X</code> with the real letter only after you have confirmed the target with <code>lsblk</code>.</p>
     </div>
 
     <h2 id="the-drives">The drives</h2>
@@ -31,8 +29,7 @@
     <tr><td>SSD-B</td><td>SK hynix BC511 256GB</td><td>NVMe</td><td>238.5G</td><td>External (USB enclosure)</td><td>Photos, mounted at <code>/mnt/photos</code></td></tr>
     </tbody>
     </table>
-    <p>The capacity is shown by <code>lsblk</code> in GiB, which is why a "256 GB" drive appears as 238.5G.</p>
-
+  
     <h2 id="common-procedure">Common procedure</h2>
 
     <h3 id="identify-the-target">1. Identify the target</h3>
@@ -41,15 +38,8 @@
     <img src="../img/ssd-2.png" alt="lsblk output on the NAS with the NVMe and SATA drives underlined" loading="lazy">
     <figcaption>On the NAS, the NVMe drive shows up as <code>sdb</code> (model "JMicron", the USB bridge chip) and the SATA drive as <code>sdc</code>. The red marks are my own annotations.</figcaption>
     </figure>
-    <p>Things to check in this output:</p>
-    <ul>
-    <li><code>sda</code> is the NAS boot disk (<code>/boot/efi</code>, <code>/</code>, swap). Never touch it.</li>
-    <li>The <code>TRAN</code> column shows how each drive is connected. The two target drives are <code>usb</code>; the boot disk is <code>sata</code>.</li>
-    <li>Because the NVMe drive sits behind a USB bridge, it appears as a <code>sdX</code> device and its model is reported as the bridge chip ("JMicron"), not the drive itself.</li>
-    <li>Device letters are assigned in the order the drives are detected, so they can change between boots and between machines. On my laptop both drives appeared as <code>/dev/sda</code> on different days. Re-run <code>lsblk</code> before every destructive command instead of reusing a letter from memory.</li>
-    </ul>
-
-    <h3 id="check-smart-health">Check SMART health (optional but worthwhile)</h3>
+    
+    <h3 id="check-smart-health">Check SMART health</h3>
     <p>Since these drives are going into a NAS, I checked their health first. Through a USB bridge, <code>smartctl</code> usually cannot talk to the drive unless you tell it which bridge protocol to use with <code>-d</code>.</p>
     <p>For the SATA drive (<code>-d sat</code>):</p>
     <pre><code>sudo smartctl -a -d sat /dev/sdc</code></pre>
@@ -70,15 +60,7 @@
     <tr><td>Other items to watch</td><td>UDMA_CRC_Error_Count: 59</td><td>Unsafe shutdowns: 127</td></tr>
     </tbody>
     </table>
-    <p>How I read this:</p>
-    <ul>
-    <li>Both drives are lightly used and pass their overall health assessment, so they are fine for a home NAS.</li>
-    <li>The SATA drive has 4 reallocated sectors. That is a small, stable number, but it is worth checking again after a few weeks to make sure it does not grow.</li>
-    <li>The 59 CRC errors on the SATA drive are normally caused by the cable or connector, not by the flash itself. If the number keeps increasing, replace the adapter or cable first.</li>
-    <li>The SATA report also contains "Incomplete response" and aborted <code>READ LOG EXT</code> entries. These look like limits of the USB bridge, which does not pass every ATA command through, rather than drive faults, but I did not verify this by connecting the drive directly.</li>
-    <li>The 127 unsafe shutdowns on the NVMe drive are just a count of past power losses or unplugs without a clean shutdown. Media errors are 0.</li>
-    </ul>
-
+    
     <details>
     <summary>Full smartctl output: SSD-A (SATA)</summary>
     <pre class="src"><code>smartctl 7.4 2023-08-01 r5530 [x86_64-linux-6.12.118+deb13-amd64] (local build)
@@ -171,9 +153,9 @@ Num  Test_Description  Status                       Power_on_Hours
     <h3 id="unmount">2. Unmount</h3>
     <p>Unmount every mounted partition of the target drive, not the whole disk. Running <code>umount</code> on the disk itself fails with "not mounted" because only its partitions are mounted.</p>
     <pre><code>sudo umount /dev/sdX2</code></pre>
-    <p>If you get "target is busy", something is still using the drive. <code>lsof</code> or <code>fuser -vm /mount/point</code> shows which process it is.</p>
+    
 
-    <h3 id="discard">3. Discard all blocks with TRIM (optional)</h3>
+    <h3 id="discard">3. Discard all blocks with TRIM </h3>
     <pre><code>sudo blkdiscard -f /dev/sdX</code></pre>
     <p>This tells the SSD that every block is free, which resets it to a fresh state and is the fastest way to clear a whole drive.</p>
     <ul>
@@ -194,8 +176,7 @@ Num  Test_Description  Status                       Power_on_Hours
     <li><code>parted -a optimal ... mkpart primary 0% 100%</code> creates one partition that uses the whole disk, aligned for best performance.</li>
     <li><code>mkfs.ext4</code> creates the filesystem. For a Linux-only NAS, ext4 is a sensible default. If the drive will also be plugged into Windows or macOS, use <code>mkfs.exfat</code> instead.</li>
     </ol>
-    <p>You can set a label while formatting. The labels on my drives are <code>photos</code> and <code>files</code>:</p>
-    <pre><code>sudo mkfs.ext4 -L photos /dev/sdX1</code></pre>
+  
 
     <h3 id="verify">5. Verify</h3>
     <pre><code>lsblk -f /dev/sdX</code></pre>
@@ -221,20 +202,6 @@ Num  Test_Description  Status                       Power_on_Hours
     <li>After initialization it had a single ext4 partition labelled <code>photos</code>.</li>
     </ul>
 
-    <h2 id="permanent-mounts">Making the mounts permanent</h2>
-    <p>Mount by UUID rather than by device name, because the device letters can change. Get the UUID from <code>lsblk -f</code> or <code>blkid</code>, then add a line like this to <code>/etc/fstab</code>:</p>
-    <pre class="src"><code>UUID=a34de2ce-bd41-4206-ad6d-dc37ce2473bf  /mnt/photos  ext4  defaults,nofail  0  2</code></pre>
-    <p><code>nofail</code> lets the NAS boot even if a USB drive is missing. Test the entry with <code>sudo mount -a</code> before rebooting.</p>
-    <p>Optionally, ext4 reserves 5% of the space for root by default. On a pure data disk you can lower that, for example to 1%:</p>
-    <pre><code>sudo tune2fs -m 1 /dev/sdX1</code></pre>
-
-    <h2 id="notes">Notes</h2>
-    <ul>
-    <li>Because I am reusing the drives myself, overwriting them with <code>dd</code> or similar is unnecessary and only uses up the SSD's write endurance.</li>
-    <li>If you plan to sell or give away a drive, a normal format is not enough. Use the manufacturer's Secure Erase tool, or encrypt the drive (for example with LUKS) before wiping it and then discard the key.</li>
-    <li>The internal system drive must never be a target. Check it against the <code>MOUNTPOINT</code> column (<code>/</code> and <code>/boot</code>) before you run anything.</li>
-    <li>Device names are not stable. For a safer way to refer to a drive, use the persistent names in <code>/dev/disk/by-id/</code>, which include the model and serial number.</li>
-    </ul>
   </article>
   <div class="prompt"><a href="./">$ cd ..</a></div>
   <footer>&copy; 2026 gloomydog</footer>
